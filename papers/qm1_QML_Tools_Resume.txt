@@ -1,0 +1,180 @@
+Quantum Support Vector Machines. QSVM builds upon the traditional Support Vector
+Machine (SVM) framework by incorporating quantum computing principles. Classically, SVMs
+operate by identifying a hyperplane in a high-dimensional feature space that effectively separates
+different data classes. The optimal hyperplane maximizes the distance, or margin, from the nearest
+points of each class, known as support vectors.
+In contrast, the QSVM avoids the computationally intensive task of constructing a high-
+dimensional feature space by using a quantum circuit to embed data into a quantum feature
+space. This process, known as the quantum feature map, utilizes the parallel processing capabil-
+ities of quantum computers. The embedded states, denoted as |𝜙(⃖⃗𝑥)⟩, reside in a Hilbert space
+of exponentially large dimension, enabling expressive representations that are often inaccessible
+classically.
+Within this quantum feature space, the QSVM computes kernel functions, essential elements
+in SVMs that assess the similarity between pairs of data points. In quantum computing, these
+kernel functions are linked to the concept of fidelity, a measure that evaluates the similarity or
+“distance” between quantum states represented as state vectors or density matrices. Fidelity ranges
+from 0 (completely distinguishable states) to 1 (identical states). The quantum kernel is defined
+mathematically as
+𝐾𝑖𝑗 =|⟨𝜙(⃖⃗𝑥𝑖)|𝜙(⃖⃗𝑥𝑗)⟩|2, (23)
+where 𝐾𝑖𝑗 is the kernel matrix, ⃖⃗𝑥𝑖, ⃖⃗𝑥𝑗 are input vectors, and 𝜙(⃖⃗𝑥)is the quantum feature map. Fidelity
+values range from 0 (orthogonal states) to 1 (identical states), measuring the overlap between
+quantum states.
+This is referred to as the quantum kernel trick, and allows QSVM to evaluate similarity in a
+quantum feature space without having to compute explicit feature vectors. The main computational
+advantage of this method over classical SVMs lies in the ability to efficiently estimate kernel values
+in exponentially large Hilbert spaces, which would be difficult to compute or even represent. Instead
+of explicitly mapping data to a high-dimensional space and calculating inner products, the quantum
+device does so implicitly through state superpositions, taking advantage of quantum parallelism
+and interference. This reduces the memory and computational overhead associated with traditional
+kernel methods and opens up the possibility of solving sorting problems that would otherwise be
+inaccessible to classical algorithms.
+ACM Comput. Surv., Vol. 58, No. 4, Article 91. Publication date: October 2025.
+A Survey of QML: Foundations, Algorithms, Frameworks, Data and Applications 91:15
+In practice, this overlap is estimated using circuits such as the SWAP test or the overlap test. In
+the SWAP test, a qubit ancilla mediates a controlled exchange between two quantum states, and
+the measurement of the ancilla provides information about the fidelity. The probability 𝑃(0)of
+measuring the ancilla in the |0⟩state is related to the kernel value via Equation (24).
+|⟨𝜙(⃖⃗𝑥𝑖)|𝜙(⃖⃗𝑥𝑗)⟩|2=2𝑃(0)−1. (24)
+This allows the construction of the full kernel matrix for SVM optimization. The resulting decision
+function takes the form of Equation (25).
+𝑓(x)=∑
+𝑖
+𝛼𝑖𝑦𝑖𝐾(x𝑖,x)+𝑏, (25)
+where 𝛼𝑖 are the learned coefficients from the SVM training process, 𝑦𝑖 ∈{−1,1}are the class labels
+of the training data, 𝐾(x𝑖,x)is the quantum kernel between a training point x𝑖 and a test point x,
+and 𝑏is the bias term.
+Although QSVMs offer the potential for exponential gains, their performance is sensitive to noise
+and errors in today’s quantum hardware. Kernel estimation is especially vulnerable: small gate or
+decoherence errors can distort fidelity values, producing unreliable or even non-positive semidefinite
+kernel matrices. Moreover, in high-dimensional quantum spaces, most pairs of states are nearly
+orthogonal, which can cause all kernel values to converge to zero and render classification inefficient.
+To address this, several mitigation techniques are employed. One approach is to restrict the
+expressivity of the quantum feature map, thereby limiting the exploration of the full Hilbert space
+and preventing the generation of nearly orthogonal quantum states. Another strategy involves
+scaling the input data, which increases the average overlap between encoded states and improves the
+stability of kernel estimation. Additionally, projected or structured kernels can be used to simplify
+state comparisons by focusing on specific observables or subspaces, thus reducing sensitivity to
+noise and enhancing the discriminative power of the kernel matrix.
+While the QSVM promises enhanced speed and efficiency for complex, high-dimensional classifi-
+cation tasks, its practical application remains challenging due to limitations in current quantum
+technology, such as qubit availability and quantum errors. Realizing the full potential of QSVM
+depends on advances in quantum computing, particularly in quantum error correction, an ongoing
+area of intense research.
+Furthermore, there exist other versions of QSVM, like the PegasosQSVM. The PegasosQSVM
+algorithm is basically the same as QSVM, except that it is adapted for larger datasets and implements
+the Pegasus (Proximal Gradient Descent for Sparse Learning) algorithm to handle regularization
+terms that induce sparsity in solutions. This adaptation allows PegasosQSVM to be more efficient
+and scalable, especially in contexts where data is massive and sparsity is desired to improve
+interpretability and reduce model overfitting. There are also other types of kernels, which can be
+trained to achieve an optimised kernel, and therefore, better results can be achieved.
+Finally, its pseudocode can be found in Algorithm 6 (see Appendix C
+
+
+
+Quantum Frameworks, Cloud Integration, and Datasets
+This section reviews the existing frameworks for QML (Section 6.1), discusses the integration of QML
+with cloud-based quantum platforms (Section 6.2) and introduces existing datasets (Section 6.3).
+6.1 Existing Frameworks
+Various frameworks and libraries enrich the landscape of quantum computing, each offering
+distinctive features and capabilities for developing and executing quantum algorithms. Given the
+variety of quantum computing frameworks available, it is natural to consider which one is the
+most suitable for beginners. Each framework has its own strengths and weaknesses, which can
+significantly impact the learning experience and the types of projects you may want to pursue.
+In this section, we provide an overview of several prominent quantum computing frameworks
+and libraries, including Qiskit, Pennylane, Q#, Cirq, Wolfram Quantum, Amazon Braket, Strawberry
+Fields, TensorFlow Quantum, and OpenFermion. We discuss each framework’s architecture, features,
+and suitability for various quantum computing tasks. Additionally, we highlight the advantages
+and limitations of each framework to assist researchers and practitioners in selecting the most
+appropriate tool for their specific needs.
+Qiskit [48], developed by IBM, is an open-source quantum computing framework that provides
+tools for quantum circuit construction, simulation, and execution, with a user-friendly programming
+interface and extensive documentation. Qiskit supports hybrid quantum-classical computing and
+integrates with classical machine learning libraries, though it may face scalability and resource
+utilization limitations.
+ACM Comput. Surv., Vol. 58, No. 4, Article 91. Publication date: October 2025.
+A Survey of QML: Foundations, Algorithms, Frameworks, Data and Applications 91:23
+Pennylane [8], developed by Xanadu, focuses on differentiable programming and hybrid quantum-
+classical computing, offering seamless integration with TensorFlow and PyTorch. It excels in
+optimization techniques and supports various quantum hardware platforms, but it has a steeper
+learning curve and a smaller ecosystem.
+Q# [78], developed by Microsoft, provides a high-level programming model for quantum algo-
+rithms, integrating with C# and Python, and offers strong support for quantum simulation and
+debugging tools, though its ecosystem is smaller.
+Cirq [38], an open-source framework from Google, allows for the design, simulation, and execu-
+tion of quantum circuits, offering flexibility and a modular architecture despite a steeper learning
+curve and potential lack of tooling and visualization capabilities.
+Wolfram Quantum [123], part of the Wolfram Language ecosystem, provides tools for
+symbolic quantum computation, circuit simulation, and algorithm development, with high-level
+symbolic manipulation capabilities, though it may have limited support for quantum hardware
+interfaces.
+Amazon Braket [3], an AWS service, offers access to quantum hardware from multiple vendors
+and provides a development environment for quantum algorithms, integrating seamlessly with
+AWS infrastructure, but may be perceived as a new platform with evolving features and potentially
+prohibitive pricing.
+Strawberry Fields [56], from Xanadu, focuses on continuous-variable quantum computing and
+integrates with Pennylane, making it suitable for quantum photonic systems, though it may be
+limited for discrete-variable tasks. TensorFlow Quantum [13], developed by Google and others,
+enables the construction of hybrid quantum-classical models using TensorFlow, offering scalable
+and efficient machine learning workflows but requiring familiarity with both TensorFlow and
+quantum computing concepts.
+TorchQuantum [126] is a recent library developed by Tsinghua University, specifically designed
+for QDL tasks. It integrates PyTorch with parameterized quantum circuits, allowing the training
+of quantum models using classical techniques such as self-difference. It is especially useful for
+experienced PyTorch researchers interested in QML.
+IBM Quantum Lab [47] is an interactive cloud platform that provides direct access to IBM quantum
+hardware, integration with Qiskit, and visual tools for developing and running quantum algorithms.
+It’s an excellent practical gateway for both beginners and advanced users who want to experiment
+with real-world quantum computing. Table 3 (see Appendix A) summarizes the quantum computing
+frameworks discussed before, highlighting key attributes such as the company behind the devel-
+opment, licensing structure, programming languages supported, and the year of their introduction.
+Choosing the right framework can feel challenging, especially for those who are new to quantum
+computing, as each option offers distinct features that cater to different interests and skill levels.
+Table 4 (see Appendix A) presents a concise overview of the various frameworks, highlighting
+their primary benefits and key considerations in an attempt to help researchers to make the right
+choice. This table might be a reference point for selecting a framework that aligns with the goals
+and background. Comparing aspects such as ease of use, community support, and integration
+capabilities may facilitate the initial foray into QML.
+Consequently, if someone is starting out and looking for a general framework to learn the
+fundamentals of quantum computing, Qiskit is often recommended due to its documentation
+and supportive community. It allows you to explore various quantum computing concepts and
+applications effectively. However, if someone is interested in integrating quantum computing with
+machine learning immediately, Pennylane or TensorFlow Quantum could also be excellent choices.
+Finally, Table 5 (see Appendix A) summarizes the support each framework offers for the main QML
+algorithms analyzed. The fact that an algorithm is not marked does not imply that it cannot be
+ACM Comput. Surv., Vol. 58, No. 4, Article 91. Publication date: October 2025.
+91:24 F. Rodríguez-Díaz et al.
+implemented with a given framework, but rather that the framework does not provide built-in
+classes or high-level methods that facilitate its direct implementation.
+6.2 Integration of QML with Cloud-based Quantum Computing Platforms
+In the last years, cloud-accessible quantum computers have grown from experimental prototypes to
+fully managed services capable of running millions of circuit evaluations per day. Public platforms
+such as IBM Quantum, Amazon Braket, Google Quantum AI and Microsoft Azure Quantum now
+offer researchers immediate and uniform access to superconducting, trapped ion and neutral atom
+processors, abstracting from the underlying cryogenic hardware and vendor-specific toolchains.
+Allowing the same QML experiment to run on heterogeneous back-ends under identical calibration
+snapshots has made these services indispensable for reproducible QML research. They facilitate
+benchmarking between technologies, provide calibrated noise data for error mitigation studies,
+and extend parameter sweeps far beyond the capacity of any local test. The main cloud platforms
+and their specific QML integration points are listed in Table 6 (see Appendix A).
+6.3 Quantum Datasets
+Quantum datasets provide a consistent basis for evaluating and comparing quantum algorithms and
+hybrid models. However, preparing quantum-compatible datasets is often complex, as it requires
+either preprocessing classical data or generating data through simulations or quantum hardware.
+A notable example is QDataSet [88], which offers a scalable framework for converting classical
+datasets into quantum circuit representations. Each dataset includes Qiskit-compatible circuits
+that encode data using methods such as angle or amplitude encoding, along with standardized
+splits, labels, and metadata describing the encoding process. This structure supports reproducibility
+and simplifies benchmarking by allowing researchers to focus on model design rather than data
+preparation. QDataSet covers a range of machine learning tasks, including classification, regression,
+and generative modeling, using both classical benchmarks (e.g., Iris, MNIST) and synthetic datasets
+tailored to quantum applications.
+The Pennylane Quantum Data module [87] offers a collection of datasets designed for use in
+QML workflows. Examples include the moon dataset for binary classification and several molecular
+datasets intended for quantum chemistry simulations using variational algorithms. Although
+relatively small, these datasets are practical for experimentation, benchmarking, and instructional
+use within hybrid quantum-classical settings.
+The Open Quantum Data Commons (OpenQDC) [79] is a large-scale repository of quantum
+mechanics datasets. It includes nearly 40 datasets covering over 1.5 billion molecular geometries
+across 70 atomic species and 250 quantum methods. Each dataset is standardized and enriched with
+metadata and is accessible through a Python API that supports efficient formats.
+Table 7 (see Appendix A) summarizes the main features of the datasets introduced in this section

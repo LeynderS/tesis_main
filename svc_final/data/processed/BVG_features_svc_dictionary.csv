@@ -1,0 +1,7 @@
+feature,familia,justificacion
+ret_lag_1..3,memoria_corta,dependencia temporal local
+"mom_3, mom_5, mom_10",momentum,ventanas deslizantes en literatura SVM/SVR
+"vol_5, vol_10, regime_vol_ratio",volatilidad,FTS heterocedastica
+"ma_5, ma_10, ma_gap, price_vs_ma10",tendencia,senal de estructura local de precio
+rsi_14,tecnico,oscilador usado frecuentemente en estudios de mercado
+"turnover_log1p, volume_log1p, avg_trade_size_log1p, amihud_5, days_since_trade",liquidez_microestructura,mercado BVG con episodios de iliquidez
