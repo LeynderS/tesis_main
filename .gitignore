@@ -18,3 +18,11 @@ dist/
 .DS_Store
 Thumbs.db
 .vscode/settings.json
+htmls/
+papers/
+.agents/
+.github/
+.vscode/
+.gemini/
+skills-lock.json
+GEMINI.md
