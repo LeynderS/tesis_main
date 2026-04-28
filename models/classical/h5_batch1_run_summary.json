@@ -1,0 +1,182 @@
+{
+  "seed": 42,
+  "dataset_path": "C:\\Users\\leynd\\OneDrive\\Escritorio\\Tesis\\implementaciones\\desarrollov3\\data\\processed\\BVG_features_svc_master.csv",
+  "n_rows_raw": 2841,
+  "n_rows_clean": 2831,
+  "quality": {
+    "total_rows": 2841,
+    "after_horizonte_filter_rows": 2841,
+    "after_nan_drop_rows": 2831,
+    "dropped_nan_rows": 10
+  },
+  "feature_columns": [
+    "close_last",
+    "close_vwap",
+    "volume_shares_day",
+    "turnover_value_day",
+    "n_trades_day",
+    "ret_lag_1",
+    "ret_lag_2",
+    "ret_lag_3",
+    "mom_3",
+    "mom_5",
+    "mom_10",
+    "vol_5",
+    "vol_10",
+    "regime_vol_ratio",
+    "ma_5",
+    "ma_10",
+    "ma_gap",
+    "price_vs_ma10",
+    "rsi_14",
+    "turnover_log1p",
+    "volume_log1p",
+    "avg_trade_size_log1p",
+    "amihud_5",
+    "days_since_trade"
+  ],
+  "companies": {
+    "BANCO GUAYAQUIL S.A.": {
+      "metrics": {
+        "accuracy": 0.8333333333333334,
+        "f1": 0.9090909090909091,
+        "positive_rate_pred": 1.0,
+        "positive_rate_test": 0.8333333333333334
+      },
+      "meta": {
+        "company": "BANCO GUAYAQUIL S.A.",
+        "horizonte": "h5",
+        "random_seed": 42,
+        "test_size": 30,
+        "n_rows_company": 1148,
+        "n_train": 1118,
+        "n_test": 30,
+        "train_start_date": "2019-02-13",
+        "train_end_date": "2026-01-21",
+        "test_start_date": "2026-01-23",
+        "test_end_date": "2026-03-18",
+        "feature_columns": [
+          "close_last",
+          "close_vwap",
+          "volume_shares_day",
+          "turnover_value_day",
+          "n_trades_day",
+          "ret_lag_1",
+          "ret_lag_2",
+          "ret_lag_3",
+          "mom_3",
+          "mom_5",
+          "mom_10",
+          "vol_5",
+          "vol_10",
+          "regime_vol_ratio",
+          "ma_5",
+          "ma_10",
+          "ma_gap",
+          "price_vs_ma10",
+          "rsi_14",
+          "turnover_log1p",
+          "volume_log1p",
+          "avg_trade_size_log1p",
+          "amihud_5",
+          "days_since_trade"
+        ],
+        "target_column": "target_up_h5",
+        "params_fixed": {
+          "kernel": "linear",
+          "C": 0.1,
+          "gamma": "scale",
+          "probability": true,
+          "class_weight": "balanced"
+        }
+      },
+      "artifact_paths": {
+        "model_path": "C:\\Users\\leynd\\OneDrive\\Escritorio\\Tesis\\implementaciones\\desarrollov3\\models\\classical\\BANCO_GUAYAQUIL_SA_h5_pipeline.joblib",
+        "manifest_path": "C:\\Users\\leynd\\OneDrive\\Escritorio\\Tesis\\implementaciones\\desarrollov3\\models\\classical\\BANCO_GUAYAQUIL_SA_h5_manifest.json"
+      },
+      "smoke": {
+        "ok": true,
+        "n_predictions": 5,
+        "predictions": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "company": "BANCO GUAYAQUIL S.A."
+      }
+    },
+    "CORPORACION FAVORITA C.A.": {
+      "metrics": {
+        "accuracy": 0.43333333333333335,
+        "f1": 0.5142857142857142,
+        "positive_rate_pred": 0.5333333333333333,
+        "positive_rate_test": 0.6333333333333333
+      },
+      "meta": {
+        "company": "CORPORACION FAVORITA C.A.",
+        "horizonte": "h5",
+        "random_seed": 42,
+        "test_size": 30,
+        "n_rows_company": 1683,
+        "n_train": 1653,
+        "n_test": 30,
+        "train_start_date": "2019-01-25",
+        "train_end_date": "2026-01-28",
+        "test_start_date": "2026-01-29",
+        "test_end_date": "2026-03-18",
+        "feature_columns": [
+          "close_last",
+          "close_vwap",
+          "volume_shares_day",
+          "turnover_value_day",
+          "n_trades_day",
+          "ret_lag_1",
+          "ret_lag_2",
+          "ret_lag_3",
+          "mom_3",
+          "mom_5",
+          "mom_10",
+          "vol_5",
+          "vol_10",
+          "regime_vol_ratio",
+          "ma_5",
+          "ma_10",
+          "ma_gap",
+          "price_vs_ma10",
+          "rsi_14",
+          "turnover_log1p",
+          "volume_log1p",
+          "avg_trade_size_log1p",
+          "amihud_5",
+          "days_since_trade"
+        ],
+        "target_column": "target_up_h5",
+        "params_fixed": {
+          "kernel": "rbf",
+          "C": 10.0,
+          "gamma": 0.01,
+          "probability": true,
+          "class_weight": "balanced"
+        }
+      },
+      "artifact_paths": {
+        "model_path": "C:\\Users\\leynd\\OneDrive\\Escritorio\\Tesis\\implementaciones\\desarrollov3\\models\\classical\\CORPORACION_FAVORITA_CA_h5_pipeline.joblib",
+        "manifest_path": "C:\\Users\\leynd\\OneDrive\\Escritorio\\Tesis\\implementaciones\\desarrollov3\\models\\classical\\CORPORACION_FAVORITA_CA_h5_manifest.json"
+      },
+      "smoke": {
+        "ok": true,
+        "n_predictions": 5,
+        "predictions": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "company": "CORPORACION FAVORITA C.A."
+      }
+    }
+  }
+}

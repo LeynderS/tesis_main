@@ -1,0 +1,7 @@
+{
+  "name": "ZZFeatureMap",
+  "feature_dimension": 5,
+  "reps": 2,
+  "entanglement": "linear",
+  "fidelity_backend": "statevector"
+}

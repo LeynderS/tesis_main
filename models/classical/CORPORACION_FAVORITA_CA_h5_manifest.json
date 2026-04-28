@@ -1,0 +1,56 @@
+{
+  "project": "tesis_main",
+  "subphase": "subfase-6-modelado-clasico-h5",
+  "company": "CORPORACION FAVORITA C.A.",
+  "horizonte": "h5",
+  "model_family": "classical",
+  "created_at_utc": "2026-04-27T17:02:55.358077+00:00",
+  "random_seed": 42,
+  "train_start_date": "2019-01-25",
+  "train_end_date": "2026-01-28",
+  "feature_columns": [
+    "close_last",
+    "close_vwap",
+    "volume_shares_day",
+    "turnover_value_day",
+    "n_trades_day",
+    "ret_lag_1",
+    "ret_lag_2",
+    "ret_lag_3",
+    "mom_3",
+    "mom_5",
+    "mom_10",
+    "vol_5",
+    "vol_10",
+    "regime_vol_ratio",
+    "ma_5",
+    "ma_10",
+    "ma_gap",
+    "price_vs_ma10",
+    "rsi_14",
+    "turnover_log1p",
+    "volume_log1p",
+    "avg_trade_size_log1p",
+    "amihud_5",
+    "days_since_trade"
+  ],
+  "target_column": "target_up_h5",
+  "sklearn_version": "1.8.0",
+  "params_fixed": {
+    "kernel": "rbf",
+    "C": 10.0,
+    "gamma": 0.01,
+    "probability": true,
+    "class_weight": "balanced"
+  },
+  "artifact_checksums_sha256": {
+    "CORPORACION_FAVORITA_CA_h5_pipeline.joblib": "b0bf969c777c31f3005148e7db835bc4602cd877660dc3ba6ec803d228f57a6a"
+  },
+  "data_snapshot_hash": "bce37592f43e8c33bedca30240443382a9cb91ed6e6edde9a81f0f8c2f67ddb4",
+  "metrics": {
+    "accuracy": 0.43333333333333335,
+    "f1": 0.5142857142857142,
+    "positive_rate_pred": 0.5333333333333333,
+    "positive_rate_test": 0.6333333333333333
+  }
+}

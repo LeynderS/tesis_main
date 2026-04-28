@@ -1,0 +1,60 @@
+{
+  "project": "tesis_main",
+  "subphase": "subfase-7-modelado-cuantico-h5",
+  "company": "BANCO GUAYAQUIL S.A.",
+  "horizonte": "h5",
+  "model_family": "quantum",
+  "created_at_utc": "2026-04-27T18:12:46.804042+00:00",
+  "random_seed": 42,
+  "train_start_date": "2019-02-13",
+  "train_end_date": "2026-01-21",
+  "feature_columns": [
+    "close_last",
+    "close_vwap",
+    "volume_shares_day",
+    "turnover_value_day",
+    "n_trades_day",
+    "ret_lag_1",
+    "ret_lag_2",
+    "ret_lag_3",
+    "mom_3",
+    "mom_5",
+    "mom_10",
+    "vol_5",
+    "vol_10",
+    "regime_vol_ratio",
+    "ma_5",
+    "ma_10",
+    "ma_gap",
+    "price_vs_ma10",
+    "rsi_14",
+    "turnover_log1p",
+    "volume_log1p",
+    "avg_trade_size_log1p",
+    "amihud_5",
+    "days_since_trade"
+  ],
+  "target_column": "target_up_h5",
+  "sklearn_version": "1.8.0",
+  "qiskit_version": "2.3.1",
+  "qiskit_ml_version": "0.9.0",
+  "params_fixed": {
+    "svc_kernel": "precomputed",
+    "probability": true,
+    "class_weight": "balanced"
+  },
+  "pca_n_components": 5,
+  "artifact_checksums_sha256": {
+    "BANCO_GUAYAQUIL_SA_h5_scaler.joblib": "752d9723931ed31e7b8a2228e0ffba282118eb339aa822d75f368a98610e092b",
+    "BANCO_GUAYAQUIL_SA_h5_pca.joblib": "d481354cb094eb3b336cc9e4ca6b0571fda77f836cd729f1ebb7e71c8f12ed59",
+    "BANCO_GUAYAQUIL_SA_h5_svc.joblib": "001ec5e653e65e75eb7aece40117efc7e136dd663f43d22a8f3afee525615975",
+    "BANCO_GUAYAQUIL_SA_h5_kernel_config.json": "bfb7ee4bd3b81ebc0e87ad5714e599dd09de5cfbf6a1773622fd99b287a3ba22"
+  },
+  "data_snapshot_hash": "e8f5cefb71e8f3eca208520834695aa86adef347a9ad8468101242d03a9e9343",
+  "metrics": {
+    "accuracy": 0.36666666666666664,
+    "f1": 0.45714285714285713,
+    "positive_rate_pred": 0.3333333333333333,
+    "positive_rate_test": 0.8333333333333334
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "seed": 42,
+  "dataset_path": "C:\\Users\\leynd\\OneDrive\\Escritorio\\Tesis\\implementaciones\\desarrollov3\\data\\processed\\BVG_features_svc_master.csv",
+  "quality": {
+    "total_rows": 2841,
+    "after_nan_drop_rows": 2831,
+    "dropped_nan_rows": 10
+  },
+  "feature_columns": [
+    "close_last",
+    "close_vwap",
+    "volume_shares_day",
+    "turnover_value_day",
+    "n_trades_day",
+    "ret_lag_1",
+    "ret_lag_2",
+    "ret_lag_3",
+    "mom_3",
+    "mom_5",
+    "mom_10",
+    "vol_5",
+    "vol_10",
+    "regime_vol_ratio",
+    "ma_5",
+    "ma_10",
+    "ma_gap",
+    "price_vs_ma10",
+    "rsi_14",
+    "turnover_log1p",
+    "volume_log1p",
+    "avg_trade_size_log1p",
+    "amihud_5",
+    "days_since_trade"
+  ],
+  "companies": {
+    "BANCO GUAYAQUIL S.A.": {
+      "metrics": {
+        "accuracy": 0.36666666666666664,
+        "f1": 0.45714285714285713,
+        "positive_rate_pred": 0.3333333333333333,
+        "positive_rate_test": 0.8333333333333334
+      },
+      "pca_n_components": 5,
+      "feature_map_config": {
+        "name": "ZZFeatureMap",
+        "feature_dimension": 5,
+        "reps": 2,
+        "entanglement": "linear",
+        "fidelity_backend": "statevector"
+      },
+      "export": {
+        "artifact_paths": {
+          "scaler_path": "C:\\Users\\leynd\\OneDrive\\Escritorio\\Tesis\\implementaciones\\desarrollov3\\models\\quantum\\BANCO_GUAYAQUIL_SA_h5_scaler.joblib",
+          "pca_path": "C:\\Users\\leynd\\OneDrive\\Escritorio\\Tesis\\implementaciones\\desarrollov3\\models\\quantum\\BANCO_GUAYAQUIL_SA_h5_pca.joblib",
+          "svc_path": "C:\\Users\\leynd\\OneDrive\\Escritorio\\Tesis\\implementaciones\\desarrollov3\\models\\quantum\\BANCO_GUAYAQUIL_SA_h5_svc.joblib",
+          "kernel_config_path": "C:\\Users\\leynd\\OneDrive\\Escritorio\\Tesis\\implementaciones\\desarrollov3\\models\\quantum\\BANCO_GUAYAQUIL_SA_h5_kernel_config.json",
+          "manifest_path": "C:\\Users\\leynd\\OneDrive\\Escritorio\\Tesis\\implementaciones\\desarrollov3\\models\\quantum\\BANCO_GUAYAQUIL_SA_h5_manifest.json"
+        },
+        "checksums_ok": true,
+        "smoke_predictions": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "CORPORACION FAVORITA C.A.": {
+      "metrics": {
+        "accuracy": 0.4,
+        "f1": 0.3076923076923077,
+        "positive_rate_pred": 0.23333333333333334,
+        "positive_rate_test": 0.6333333333333333
+      },
+      "pca_n_components": 5,
+      "feature_map_config": {
+        "name": "ZZFeatureMap",
+        "feature_dimension": 5,
+        "reps": 2,
+        "entanglement": "linear",
+        "fidelity_backend": "statevector"
+      },
+      "export": {
+        "artifact_paths": {
+          "scaler_path": "C:\\Users\\leynd\\OneDrive\\Escritorio\\Tesis\\implementaciones\\desarrollov3\\models\\quantum\\CORPORACION_FAVORITA_CA_h5_scaler.joblib",
+          "pca_path": "C:\\Users\\leynd\\OneDrive\\Escritorio\\Tesis\\implementaciones\\desarrollov3\\models\\quantum\\CORPORACION_FAVORITA_CA_h5_pca.joblib",
+          "svc_path": "C:\\Users\\leynd\\OneDrive\\Escritorio\\Tesis\\implementaciones\\desarrollov3\\models\\quantum\\CORPORACION_FAVORITA_CA_h5_svc.joblib",
+          "kernel_config_path": "C:\\Users\\leynd\\OneDrive\\Escritorio\\Tesis\\implementaciones\\desarrollov3\\models\\quantum\\CORPORACION_FAVORITA_CA_h5_kernel_config.json",
+          "manifest_path": "C:\\Users\\leynd\\OneDrive\\Escritorio\\Tesis\\implementaciones\\desarrollov3\\models\\quantum\\CORPORACION_FAVORITA_CA_h5_manifest.json"
+        },
+        "checksums_ok": true,
+        "smoke_predictions": [
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "project": "tesis_main",
+  "subphase": "subfase-7-modelado-cuantico-h5",
+  "company": "CORPORACION FAVORITA C.A.",
+  "horizonte": "h5",
+  "model_family": "quantum",
+  "created_at_utc": "2026-04-27T20:49:06.652582+00:00",
+  "random_seed": 42,
+  "train_start_date": "2019-01-25",
+  "train_end_date": "2026-01-28",
+  "feature_columns": [
+    "close_last",
+    "close_vwap",
+    "volume_shares_day",
+    "turnover_value_day",
+    "n_trades_day",
+    "ret_lag_1",
+    "ret_lag_2",
+    "ret_lag_3",
+    "mom_3",
+    "mom_5",
+    "mom_10",
+    "vol_5",
+    "vol_10",
+    "regime_vol_ratio",
+    "ma_5",
+    "ma_10",
+    "ma_gap",
+    "price_vs_ma10",
+    "rsi_14",
+    "turnover_log1p",
+    "volume_log1p",
+    "avg_trade_size_log1p",
+    "amihud_5",
+    "days_since_trade"
+  ],
+  "target_column": "target_up_h5",
+  "sklearn_version": "1.8.0",
+  "qiskit_version": "2.3.1",
+  "qiskit_ml_version": "0.9.0",
+  "params_fixed": {
+    "svc_kernel": "precomputed",
+    "probability": true,
+    "class_weight": "balanced"
+  },
+  "pca_n_components": 5,
+  "artifact_checksums_sha256": {
+    "CORPORACION_FAVORITA_CA_h5_scaler.joblib": "6ec15656170038a9ccd6d256f2c210bb391a03941e9ba14d993db54316a6df6c",
+    "CORPORACION_FAVORITA_CA_h5_pca.joblib": "92156fd75955e46e9339e8517ff0b5db2ffd9b97d4c8ee2a537fc7f79c61a1aa",
+    "CORPORACION_FAVORITA_CA_h5_svc.joblib": "c8ada08bb19daeb869b45dd5c7464acd6a66b03fed1af4fd35529b2faa7030ea",
+    "CORPORACION_FAVORITA_CA_h5_kernel_config.json": "bfb7ee4bd3b81ebc0e87ad5714e599dd09de5cfbf6a1773622fd99b287a3ba22"
+  },
+  "data_snapshot_hash": "4ad44c6b27d472ce95281d9462208420800b5b3c9b12e6f2c61cca400bc58bd7",
+  "metrics": {
+    "accuracy": 0.4,
+    "f1": 0.3076923076923077,
+    "positive_rate_pred": 0.23333333333333334,
+    "positive_rate_test": 0.6333333333333333
+  }
+}

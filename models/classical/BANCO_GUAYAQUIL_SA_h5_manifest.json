@@ -1,0 +1,55 @@
+{
+  "project": "tesis_main",
+  "subphase": "subfase-6-modelado-clasico-h5",
+  "company": "BANCO GUAYAQUIL S.A.",
+  "horizonte": "h5",
+  "model_family": "classical",
+  "created_at_utc": "2026-04-27T17:02:54.735305+00:00",
+  "random_seed": 42,
+  "train_start_date": "2019-02-13",
+  "train_end_date": "2026-01-21",
+  "feature_columns": [
+    "close_last",
+    "close_vwap",
+    "volume_shares_day",
+    "turnover_value_day",
+    "n_trades_day",
+    "ret_lag_1",
+    "ret_lag_2",
+    "ret_lag_3",
+    "mom_3",
+    "mom_5",
+    "mom_10",
+    "vol_5",
+    "vol_10",
+    "regime_vol_ratio",
+    "ma_5",
+    "ma_10",
+    "ma_gap",
+    "price_vs_ma10",
+    "rsi_14",
+    "turnover_log1p",
+    "volume_log1p",
+    "avg_trade_size_log1p",
+    "amihud_5",
+    "days_since_trade"
+  ],
+  "target_column": "target_up_h5",
+  "sklearn_version": "1.8.0",
+  "params_fixed": {
+    "kernel": "linear",
+    "C": 0.1,
+    "probability": true,
+    "class_weight": "balanced"
+  },
+  "artifact_checksums_sha256": {
+    "BANCO_GUAYAQUIL_SA_h5_pipeline.joblib": "de630553a7cd2db37aaba13181dfcaf579a1a7a922b5b8c492b7026f69129d89"
+  },
+  "data_snapshot_hash": "05a66d19507220ae347d5b7c25bcdd57dfdb189e78f92bd629e5eea8362b3e63",
+  "metrics": {
+    "accuracy": 0.8333333333333334,
+    "f1": 0.9090909090909091,
+    "positive_rate_pred": 1.0,
+    "positive_rate_test": 0.8333333333333334
+  }
+}

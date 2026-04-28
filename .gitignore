@@ -24,5 +24,7 @@ papers/
 .github/
 .vscode/
 .gemini/
+.atl/
+openspec/
 skills-lock.json
 GEMINI.md
