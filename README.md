@@ -50,25 +50,6 @@ La implementación está organizada por **fases académicas**, con notebooks aut
   - `{empresa}_h5_manifest.json`
   - `h5_subfase7_run_summary.json`
 
-## Ejecución de subfases (notebook-only)
-
-1. **Subfase 6 — Modelado clásico h5**
-   - Abrir: `Fase3_ModeladoClasico/subfase_6_modelado_final_h5.ipynb`
-   - Ejecutar todas las celdas
-
-2. **Subfase 7 — Modelado cuántico h5**
-   - Abrir: `Fase4_ModeladoCuantico/subfase_7_modelado_cuantico_h5.ipynb`
-   - Ejecutar todas las celdas (puede tardar horas por kernel cuántico)
-
-## Documentación de subfases
-
-- `docs/subfase_6_modelado_clasico_h5.md`
-- `docs/subfase_7_modelado_cuantico_h5.md`
-
-## Resultados esperados y tiempos de ejecución
-
-> **Nota**: Los resultados pueden variar según la máquina. En especial, el kernel cuántico puede tardar **horas** en ejecutarse por su complejidad cuadrática.
-
 ### Comparación de métricas (última ejecución)
 
 Las métricas se leen desde:
