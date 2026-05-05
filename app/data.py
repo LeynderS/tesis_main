@@ -144,7 +144,7 @@ def download_and_clean_bvg(
         
     df = raw_df.loc[:, list(BVG_REQUIRED_COLUMNS)].copy()
     df = df.rename(columns=BVG_COLUMN_MAP)
-    df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce")
+    df["fecha"] = pd.to_datetime(df["fecha"], origin="1899-12-30", unit="D", errors="coerce")
     df["empresa"] = df["empresa"].astype(str).str.strip()
 
     if df["empresa"].isna().any() or df["fecha"].isna().any():
@@ -152,7 +152,6 @@ def download_and_clean_bvg(
 
     for col in BVG_NUMERIC_COLUMNS:
         df.loc[:, col] = _clean_numeric_series(df[col])
-
     df = df.loc[df["empresa"].isin(target_issuers)].copy()
     required_fields = ["fecha", "empresa", *BVG_NUMERIC_COLUMNS]
     df = df.loc[df[required_fields].notna().all(axis=1)].copy()
@@ -192,6 +191,8 @@ def aggregate_daily(df: pd.DataFrame) -> pd.DataFrame:
         .apply(aggregate_trade_day)
         .reset_index()
     )
+    print(f"data.py Agregación diaria completada. Total filas: {len(aggregated)}")
+    print(aggregated.head())
 
     if aggregated.empty:
         raise ValueError("La agregación diaria no produjo resultados.")

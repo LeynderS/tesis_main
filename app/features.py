@@ -5,8 +5,6 @@ import pandas as pd
 
 from .config import HORIZONS
 
-
-# NOTE: Copia exacta desde Fase2_Caracteristicas/subfase_4_feature_engineering_svc.ipynb
 def build_features_for_company(d: pd.DataFrame) -> pd.DataFrame:
     d = d.sort_values("fecha").reset_index(drop=True).copy()
 
