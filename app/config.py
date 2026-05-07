@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DATA_PATH = ROOT / "data" / "processed" / "BVG_features_svc_master.csv"
 LOG_PATH = ROOT / "app" / "logs_trazabilidad.csv"
+LAST_RUN_PATH = ROOT / "app" / "last_run.csv"
 MODELS_DIR = ROOT / "models"
 
 BVG_URL = "https://www.bolsadevaloresguayaquil.com/boletines/historicos/BVG_Acciones.xlsx"
@@ -16,6 +17,11 @@ BVG_TARGET_ISSUERS = [
 COMPANY_FILE_MAP = {
     "BANCO GUAYAQUIL S.A.": "BANCO_GUAYAQUIL_SA",
     "CORPORACION FAVORITA C.A.": "CORPORACION_FAVORITA_CA",
+}
+
+COMPANY_ABBR_MAP = {
+    "BANCO GUAYAQUIL S.A.": "BG",
+    "CORPORACION FAVORITA C.A.": "CF",
 }
 
 THEME_ACCENT_CLASSICAL = "#3b82f6"
@@ -61,7 +67,6 @@ TEST_SIZE = 30
 
 LOG_COLUMNS = [
     "id",
-    "timestamp_utc",
     "company",
     "model_family",
     "model_name",
@@ -74,7 +79,6 @@ LOG_COLUMNS = [
     "fecha_t5",
     "close_t5",
     "ret_fwd_h5",
-    "resolved_at_utc",
     "Fecha_Datos_Usados",
     "Observacion_Datos",
 ]

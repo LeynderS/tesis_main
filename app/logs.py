@@ -7,7 +7,7 @@ from uuid import uuid4
 import numpy as np
 import pandas as pd
 
-from .config import BVG_FALLBACK_MAX_DAYS, LOG_COLUMNS, TARGET_H
+from .config import BVG_FALLBACK_MAX_DAYS, LOG_COLUMNS, TARGET_H, COMPANY_ABBR_MAP
 from .features import build_features_for_company
 from .inference import (
     build_quantum_train_matrix,
@@ -19,7 +19,6 @@ from .inference import (
 
 
 def reset_log_file(log_path: Path) -> None:
-    print(f"logs.py Reseteando el archivo de log en {log_path.as_posix()}...")
     log_path.parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(columns=LOG_COLUMNS).to_csv(log_path, index=False)
 
@@ -30,8 +29,6 @@ def ensure_log_file(log_path: Path, *, reset: bool = False) -> None:
         return
 
     df_header = pd.read_csv(log_path, nrows=0)
-    print(f"logs.py ensure_log_file Verificando integridad del archivo de log en {log_path.as_posix()}...")
-    print(df_header.head())
     if list(df_header.columns) != LOG_COLUMNS:
         reset_log_file(log_path)
 
@@ -42,10 +39,6 @@ def read_log(log_path: Path) -> pd.DataFrame:
     missing = [c for c in LOG_COLUMNS if c not in df.columns]
     if missing:
         raise ValueError(f"Log corrupto. Columnas faltantes: {missing}")
-    if not df.empty:
-        df = df.copy()
-        df["fecha_t"] = pd.to_datetime(df["fecha_t"], errors="coerce")
-        df["fecha_t5"] = pd.to_datetime(df["fecha_t5"], errors="coerce")
     return df
 
 
@@ -57,19 +50,22 @@ def should_run_catchup(log_df: pd.DataFrame, price_df: pd.DataFrame) -> bool:
     if price_dates.empty:
         return False
 
-    fridays = price_dates.loc[price_dates.dt.weekday == 4]
-    if fridays.empty:
-        return False
-    last_friday = fridays.max()
+    max_date = price_dates.max()
+
+    # Próximo viernes objetivo después del último dato disponible
+    days_to_next_friday = (4 - max_date.weekday()) % 7
+    if days_to_next_friday == 0:
+        days_to_next_friday = 7
+    last_target_friday = max_date + timedelta(days=days_to_next_friday)
 
     if log_df.empty:
         return True
 
-    log_dates = pd.to_datetime(log_df["fecha_t"], errors="coerce").dt.normalize()
-    log_dates = log_dates.loc[log_dates.notna()].copy()
-    if log_dates.empty:
+    log_target_dates = pd.to_datetime(log_df["fecha_t5"], errors="coerce").dt.normalize()
+    log_target_dates = log_target_dates.loc[log_target_dates.notna()].copy()
+    if log_target_dates.empty:
         return True
-    return last_friday > log_dates.max()
+    return last_target_friday > log_target_dates.max()
 
 
 def append_log(log_path: Path, record: dict) -> None:
@@ -130,6 +126,17 @@ def get_friday_data_with_fallback(
                 )
             return candidate, close_val, obs
 
+    # Fallback extendido: reutilizar último dato disponible anterior
+    if not close_by_date.empty:
+        last_available = close_by_date.index.max()
+        close_val = float(close_by_date.loc[last_available])
+        return (
+            last_available,
+            close_val,
+            f"Reutilizando último dato disponible ({last_available.date().isoformat()}) "
+            "por ausencia total en semana objetivo.",
+        )
+
     return None, None, "Datos insuficientes"
 
 
@@ -179,16 +186,13 @@ def resolve_t_plus_5(
         raise ValueError("No se encontró un registro pendiente para resolver.")
 
     idx = log_df.loc[pending_mask].index[0]
-    fecha_t = pd.to_datetime(log_df.loc[idx, "fecha_t"], errors="coerce")
+    fecha_objetivo = pd.to_datetime(log_df.loc[idx, "fecha_t"], errors="coerce")
     close_t = float(log_df.loc[idx, "close_t"])
-
-    trading_dates = price_df.loc[price_df["empresa"] == company, "fecha"].copy()
-    fecha_t5 = compute_target_date(trading_dates, fecha_t)
 
     close_t5 = close_override
     if close_t5 is None:
         match = price_df.loc[
-            (price_df["empresa"] == company) & (price_df["fecha"].dt.normalize() == fecha_t5)
+            (price_df["empresa"] == company) & (price_df["fecha"].dt.normalize() == fecha_objetivo)
         ]
         if match.empty:
             raise ValueError(
@@ -201,11 +205,9 @@ def resolve_t_plus_5(
     y_pred = int(log_df.loc[idx, "y_pred"])
     status = "ACIERTO" if (ret_fwd > 0) == (y_pred == 1) else "FALLO"
 
-    log_df.loc[idx, "fecha_t5"] = fecha_t5
     log_df.loc[idx, "close_t5"] = close_t5
     log_df.loc[idx, "ret_fwd_h5"] = ret_fwd
     log_df.loc[idx, "status"] = status
-    log_df.loc[idx, "resolved_at_utc"] = datetime.now(timezone.utc).isoformat()
 
     log_df.to_csv(log_path, index=False)
     return log_df
@@ -215,6 +217,7 @@ def catchup_loop(
     log_path: Path,
     price_df: pd.DataFrame,
     model_name: str,
+    master_df: pd.DataFrame,
     *,
     model_families: tuple[str, ...] = ("classical", "quantum"),
     default_start_date: str = "2026-03-27",
@@ -227,8 +230,6 @@ def catchup_loop(
     work_df = price_df.copy()
     work_df["fecha"] = pd.to_datetime(work_df["fecha"], errors="coerce").dt.normalize()
     work_df = work_df.loc[work_df["fecha"].notna()].copy()
-    print(f"logs.py catchup_loop Datos de precios preparados. Total filas: {len(work_df)}")
-    print(work_df.head())
     if work_df.empty:
         return log_df
 
@@ -237,14 +238,16 @@ def catchup_loop(
         return log_df
 
     max_trading_date = pd.to_datetime(max_trading_date).normalize()
-    friday_dates = work_df.loc[work_df["fecha"].dt.weekday == 4, "fecha"].copy()
-    if friday_dates.empty:
-        return log_df
-    last_valid_friday = pd.to_datetime(friday_dates.max()).normalize()
+
+    # Próximo viernes objetivo después del último dato disponible
+    days_to_next_friday = (4 - max_trading_date.weekday()) % 7
+    if days_to_next_friday == 0:
+        days_to_next_friday = 7
+    last_valid_target_friday = max_trading_date + timedelta(days=days_to_next_friday)
 
     last_inference = None
-    if not log_df.empty and "fecha_t" in log_df.columns:
-        log_dates = pd.to_datetime(log_df["fecha_t"], errors="coerce").dt.normalize()
+    if not log_df.empty and "fecha_t5" in log_df.columns:
+        log_dates = pd.to_datetime(log_df["fecha_t5"], errors="coerce").dt.normalize()
         log_dates = log_dates.loc[log_dates.notna()]
         if not log_dates.empty:
             last_inference = log_dates.max()
@@ -259,7 +262,7 @@ def catchup_loop(
         pending_mask = log_df["status"] == "PENDIENTE"
         if pending_mask.any():
             pending_max = pd.to_datetime(
-                log_df.loc[pending_mask, "fecha_t"], errors="coerce"
+                log_df.loc[pending_mask, "fecha_t5"], errors="coerce"
             ).max()
             if pd.notna(pending_max):
                 pending_max = pd.to_datetime(pending_max).normalize()
@@ -269,7 +272,7 @@ def catchup_loop(
     if start_ts.weekday() != 4:
         days_ahead = (4 - start_ts.weekday()) % 7
         start_ts = start_ts + timedelta(days=days_ahead)
-    if start_ts > last_valid_friday:
+    if start_ts > last_valid_target_friday:
         return log_df
 
     def resolve_pending(current_friday: pd.Timestamp) -> None:
@@ -286,11 +289,11 @@ def catchup_loop(
         ].index
         for idx in resolvable_idx:
             company = log_df.loc[idx, "company"]
-            target_friday = pd.to_datetime(log_df.loc[idx, "fecha_t5"], errors="coerce").normalize()
+            target_date = pd.to_datetime(log_df.loc[idx, "fecha_t5"], errors="coerce").normalize()
             fecha_usada, close_t5, observacion = get_friday_data_with_fallback(
                 work_df,
                 company,
-                target_friday,
+                target_date,
             )
             if fecha_usada is None or close_t5 is None:
                 log_df.loc[idx, "Observacion_Datos"] = observacion
@@ -305,7 +308,6 @@ def catchup_loop(
             log_df.loc[idx, "close_t5"] = close_t5
             log_df.loc[idx, "ret_fwd_h5"] = ret_fwd
             log_df.loc[idx, "status"] = status
-            log_df.loc[idx, "resolved_at_utc"] = datetime.now(timezone.utc).isoformat()
             log_df.loc[idx, "Fecha_Datos_Usados"] = fecha_usada.date().isoformat()
             log_df.loc[idx, "Observacion_Datos"] = observacion
 
@@ -344,13 +346,17 @@ def catchup_loop(
     new_records: list[dict] = []
     companies = sorted(work_df["empresa"].dropna().unique().tolist())
 
+    # current_friday is the PREDICTION TARGET date (Friday we predict for)
+    # data is looked up from the previous Friday (current_friday - 7 days)
     current_friday = start_ts
-    while current_friday <= last_valid_friday:
+    week_num = 1
+    while current_friday <= last_valid_target_friday:
         resolve_pending(current_friday)
+        data_friday = current_friday - timedelta(days=7)
 
         for company in companies:
             fecha_usada, close_t, observacion = get_friday_data_with_fallback(
-                work_df, company, current_friday
+                work_df, company, data_friday
             )
             if fecha_usada is None or close_t is None:
                 continue
@@ -392,18 +398,6 @@ def catchup_loop(
 
                 feature_columns = list(bundle["manifest"]["feature_columns"])
                 
-                print("=== FEATURE ROW ===")
-                print(feature_row.columns.tolist())
-
-                print("=== FEATURE EXPECTED ===")
-                print(feature_columns)
-
-                missing = [c for c in feature_columns if c not in feature_row.columns]
-                print("MISSING:", missing)
-
-                nan_cols = feature_row.columns[feature_row.isna().any()].tolist()
-                print("NaN COLS:", nan_cols)
-                
                 X_row = validate_feature_row(feature_row, feature_columns)
 
                 if family == "classical":
@@ -411,49 +405,57 @@ def catchup_loop(
                 else:
                     try:
                         if bundle_key not in xtrain_cache:
+                            train_end_date = bundle["manifest"].get("train_end_date")
                             xtrain_cache[bundle_key] = build_quantum_train_matrix(
-                                work_df,
+                                master_df,
                                 company,
                                 feature_columns,
                                 bundle["scaler"],
                                 bundle["pca"],
+                                train_end_date=train_end_date,
+                                test_size=0,
                             )
-                    except ValueError as e:
-                        print(f"ERROR EN QUANTUM TRAIN MATRIX ({company}): {e}")
-                        raise
+                    except ValueError:
+                        continue
                     inference = infer_quantum_cached(
                         bundle,
                         X_row,
                         xtrain_cache[bundle_key],
                     )
 
+                abbr = COMPANY_ABBR_MAP.get(company, company.replace(" ", "_")[:5])
+                family_title = "Clasico" if family == "classical" else "Cuantico"
+                semantic_id = f"{week_num}_{abbr}_{family_title}"
+
                 record = {
-                    "id": str(uuid4()),
-                    "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                    "id": semantic_id,
                     "company": company,
                     "model_family": family,
                     "model_name": bundle["model_name"],
                     "horizonte": TARGET_H,
-                    "fecha_t": current_friday.date().isoformat(),
+                    "fecha_t": data_friday.date().isoformat(),
                     "close_t": float(close_t),
                     "y_pred": inference["y_pred"],
                     "proba_up": inference["proba_up"],
                     "status": "PENDIENTE",
-                    "fecha_t5": (current_friday + timedelta(days=7)).date().isoformat(),
+                    "fecha_t5": current_friday.date().isoformat(),
                     "close_t5": np.nan,
                     "ret_fwd_h5": np.nan,
-                    "resolved_at_utc": "",
                     "Fecha_Datos_Usados": fecha_usada.date().isoformat(),
                     "Observacion_Datos": observacion,
                 }
                 new_records.append(record)
 
-        current_friday = current_friday + timedelta(days=7)
+        # Merge new records into log_df at end of each Friday iteration
+        # so resolve_pending in the next iteration can see them
+        if new_records:
+            log_df = pd.concat(
+                [log_df, pd.DataFrame(new_records, columns=LOG_COLUMNS)], ignore_index=True
+            )
+            new_records = []
 
-    if new_records:
-        log_df = pd.concat(
-            [log_df, pd.DataFrame(new_records, columns=LOG_COLUMNS)], ignore_index=True
-        )
+        current_friday = current_friday + timedelta(days=7)
+        week_num += 1
 
     log_df.to_csv(log_path, index=False)
     return log_df
@@ -462,6 +464,7 @@ def catchup_loop(
 def run_global_catchup(
     log_path: Path,
     price_df: pd.DataFrame,
+    master_df: pd.DataFrame,
     *,
     model_name: str = "h5",
 ) -> pd.DataFrame:
@@ -469,5 +472,6 @@ def run_global_catchup(
         log_path,
         price_df,
         model_name,
+        master_df,
         model_families=("classical", "quantum"),
     )

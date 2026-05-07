@@ -38,16 +38,18 @@ def load_master_dataset(path: Path) -> pd.DataFrame:
 
 
 def get_company_history(
-    df: pd.DataFrame, company: str, tail_rows: int = 30
+    df: pd.DataFrame, company: str, tail_rows: int | None = None
 ) -> pd.DataFrame:
     history = df[df["empresa"] == company].sort_values("fecha").copy()
     if history.empty:
         raise ValueError(f"No se encontraron filas para la empresa: {company}")
-    if len(history) < tail_rows:
+    if tail_rows is not None and len(history) < tail_rows:
         raise ValueError(
             f"La empresa {company} tiene {len(history)} filas (<{tail_rows})."
         )
-    return history.tail(tail_rows).copy()
+    if tail_rows is not None:
+        return history.tail(tail_rows).copy()
+    return history.copy()
 
 
 def build_input_row(
@@ -191,8 +193,6 @@ def aggregate_daily(df: pd.DataFrame) -> pd.DataFrame:
         .apply(aggregate_trade_day)
         .reset_index()
     )
-    print(f"data.py Agregación diaria completada. Total filas: {len(aggregated)}")
-    print(aggregated.head())
 
     if aggregated.empty:
         raise ValueError("La agregación diaria no produjo resultados.")

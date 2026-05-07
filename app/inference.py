@@ -29,8 +29,7 @@ def load_classical_artifacts(company: str, model_name: str) -> dict:
     
     manifest_path = base / f"{tag}_{model_name}_manifest.json"
     pipeline_path = base / f"{tag}_{model_name}_pipeline.joblib"
-    print(f"inference.py load_classical_artifacts Cargando manifest desde {manifest_path.as_posix()}...")
-    print(f"inference.py load_classical_artifacts Cargando pipeline desde {pipeline_path.as_posix()}...")
+
     manifest = load_manifest(manifest_path)
     if not pipeline_path.exists():
         raise FileNotFoundError(
@@ -114,24 +113,28 @@ def build_quantum_train_matrix(
     feature_columns: list[str],
     scaler,
     pca,
-    test_size: int = TEST_SIZE,
+    *,
+    train_end_date: str | None = None,
+    test_size: int | None = TEST_SIZE,
 ) -> np.ndarray:
     if "horizonte" in df.columns:
         df = df.loc[df["horizonte"].astype(str) == TARGET_H].copy()
     company_df = df.loc[df["empresa"] == company].sort_values("fecha").copy()
     if company_df.empty:
         raise ValueError(f"No hay datos de entrenamiento para {company}.")
+    if train_end_date:
+        train_end = pd.to_datetime(train_end_date, errors="coerce")
+        if pd.notna(train_end):
+            company_df = company_df.loc[company_df["fecha"] <= train_end].copy()
     company_df = company_df.dropna(subset=feature_columns + ["fecha", "empresa"]).copy()
-    if len(company_df) <= test_size:
+    if test_size is not None and test_size > 0 and len(company_df) <= test_size:
         raise ValueError(
             f"Datos insuficientes para reconstruir X_train_q (n={len(company_df)})."
         )
-    train_df = company_df.iloc[: len(company_df) - test_size].copy()
-    print("COLUMNS EN TRAIN DF:")
-    print(train_df.columns.tolist())
-
-    missing = [c for c in feature_columns if c not in train_df.columns]
-    print("MISSING TRAIN:", missing)
+    if test_size is None or test_size <= 0:
+        train_df = company_df.copy()
+    else:
+        train_df = company_df.iloc[: len(company_df) - test_size].copy()
     
     if train_df.empty:
         raise ValueError("No hay datos suficientes tras el split temporal.")
@@ -159,7 +162,11 @@ def infer_quantum(
     qkernel = bundle["qkernel"]
     feature_columns = list(bundle["manifest"]["feature_columns"])
 
-    X_train_q = build_quantum_train_matrix(master_df, company, feature_columns, scaler, pca)
+    train_end_date = bundle["manifest"].get("train_end_date")
+    X_train_q = build_quantum_train_matrix(
+        master_df, company, feature_columns, scaler, pca,
+        train_end_date=train_end_date, test_size=0,
+    )
     Xq = pca.transform(scaler.transform(X_row))
     K = qkernel.evaluate(x_vec=Xq, y_vec=X_train_q)
     y_pred = int(svc.predict(K)[0])

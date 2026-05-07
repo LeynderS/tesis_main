@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from app.config import BVG_TARGET_ISSUERS, BVG_URL, DATA_PATH, LOG_PATH
+from app.config import BVG_TARGET_ISSUERS, BVG_URL, DATA_PATH, LOG_PATH, LAST_RUN_PATH, ROOT
 from app.data import (
     aggregate_daily,
     download_and_clean_bvg,
@@ -13,6 +13,7 @@ from app.data import (
     load_master_dataset,
 )
 from app.logs import read_log, run_global_catchup, should_run_catchup
+from app.state import read_last_run, write_last_run, format_last_run
 from app.ui import (
     render_top_bar,
     setup_page,
@@ -20,6 +21,7 @@ from app.ui import (
     show_quick_history,
     show_traceability_table,
     build_cards,
+    show_freeze_metrics,
 )
 from app.viz import build_plotly
 
@@ -31,17 +33,14 @@ def main() -> None:
 
     try:
         log_df = read_log(Path(LOG_PATH))
-        last_run = None
-        if not log_df.empty:
-            last_run = pd.to_datetime(log_df["timestamp_utc"], errors="coerce").max()
-        last_run_str = (
-            last_run.isoformat() if isinstance(last_run, pd.Timestamp) and pd.notna(last_run) else None
-        )
+        last_run = read_last_run(Path(LAST_RUN_PATH))
+        last_run_str = format_last_run(last_run)
     except Exception:  # noqa: BLE001
-        last_run_str = None
+        last_run_str = "—"
 
     if render_top_bar(last_run_str):
         try:
+            write_last_run(Path(LAST_RUN_PATH))
             with st.spinner("Descargando y limpiando datos BVG..."):
                 bvg_df = download_and_clean_bvg(BVG_URL, BVG_TARGET_ISSUERS)
                 daily_df = aggregate_daily(bvg_df)
@@ -49,17 +48,20 @@ def main() -> None:
             log_df = read_log(Path(LOG_PATH))
             if should_run_catchup(log_df, daily_df):
                 with st.spinner("Ejecutando catch-up y calculando inferencias..."):
-                    run_global_catchup(Path(LOG_PATH), daily_df, model_name="h5")
+                    run_global_catchup(Path(LOG_PATH), daily_df, base_df, model_name="h5")
+                st.success("Proceso completado: bitácora actualizada.")
+                st.rerun()
             else:
                 st.info("Catch-up ya está actualizado con el último viernes disponible.")
-
-            st.success("Proceso completado: bitácora actualizada.")
         except ConnectionError as exc:
             st.error(str(exc))
             st.stop()
         except Exception as exc:  # noqa: BLE001
             st.error(str(exc))
             st.stop()
+
+    freeze_csv = ROOT / "results" / "fase4_comparativa" / "BVG_subfase8_comparativa_h5.csv"
+    show_freeze_metrics(freeze_csv)
 
     if tab_companies:
         tabs = st.tabs(tab_companies)
