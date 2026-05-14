@@ -18,14 +18,18 @@ dist/
 .DS_Store
 Thumbs.db
 .vscode/settings.json
+.vscode/
+
+# Documentation
 htmls/
 papers/
+/docs
+openspec/
+
+# Agent and AI tools
 .agents/
 .github/
-.vscode/
 .gemini/
 .atl/
-openspec/
 skills-lock.json
-GEMINI.md
-/docs
+scripts/
