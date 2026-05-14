@@ -2,54 +2,32 @@ from __future__ import annotations
 
 from io import BytesIO
 import zipfile
+
 from pathlib import Path
 
 import pandas as pd
 import numpy as np
 import requests
 
+from bvg_core.data import aggregate_trade_day, load_master_dataset
 from .config import (
     BVG_COLUMN_MAP,
     BVG_NUMERIC_COLUMNS,
     BVG_REQUIRED_COLUMNS,
-    REQUIRED_RAW_COLUMNS,
 )
 
 
-def load_master_dataset(path: Path) -> pd.DataFrame:
-    if not path.exists():
-        raise FileNotFoundError(
-            f"No se encontró el dataset procesado en {path.as_posix()}"
-        )
-
-    df = pd.read_csv(path)
-    if "fecha" not in df.columns:
-        raise ValueError("El dataset no contiene la columna 'fecha'.")
-
-    df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce")
-    if df["fecha"].isna().any():
-        raise ValueError("Se detectaron fechas inválidas en el dataset base.")
-
-    missing = REQUIRED_RAW_COLUMNS.difference(df.columns)
-    if missing:
-        raise ValueError(f"Faltan columnas requeridas en dataset base: {sorted(missing)}")
-
-    return df.copy()
-
-
 def get_company_history(
-    df: pd.DataFrame, company: str, tail_rows: int | None = None
+    df: pd.DataFrame, company: str, tail_rows: int = 30
 ) -> pd.DataFrame:
     history = df[df["empresa"] == company].sort_values("fecha").copy()
     if history.empty:
         raise ValueError(f"No se encontraron filas para la empresa: {company}")
-    if tail_rows is not None and len(history) < tail_rows:
+    if len(history) < tail_rows:
         raise ValueError(
             f"La empresa {company} tiene {len(history)} filas (<{tail_rows})."
         )
-    if tail_rows is not None:
-        return history.tail(tail_rows).copy()
-    return history.copy()
+    return history.tail(tail_rows).copy()
 
 
 def build_input_row(
@@ -73,6 +51,7 @@ def build_input_row(
     if pd.isna(row["fecha"]):
         raise ValueError("La fecha ingresada es inválida.")
     return pd.DataFrame([row])
+
 
 def _clean_numeric_series(series: pd.Series) -> pd.Series:
     cleaned = series.astype(str).str.replace(r"[^0-9.,-]", "", regex=True)
@@ -124,7 +103,9 @@ def download_and_clean_bvg(
         if "stylesheet" in error_msg or "style" in error_msg:
             try:
                 cleaned_bytes = _strip_styles_xml(raw_bytes)
-                raw_df = pd.read_excel(BytesIO(cleaned_bytes), engine="openpyxl", skiprows=2)
+                raw_df = pd.read_excel(
+                    BytesIO(cleaned_bytes), engine="openpyxl", skiprows=2
+                )
             except Exception as retry_exc:  # noqa: BLE001
                 raise ValueError(
                     "Error al parsear el XLSX de BVG tras limpiar styles.xml: "
@@ -143,7 +124,7 @@ def download_and_clean_bvg(
             "El archivo BVG no contiene columnas requeridas: "
             f"{sorted(missing)}"
         )
-        
+
     df = raw_df.loc[:, list(BVG_REQUIRED_COLUMNS)].copy()
     df = df.rename(columns=BVG_COLUMN_MAP)
     df["fecha"] = pd.to_datetime(df["fecha"], origin="1899-12-30", unit="D", errors="coerce")
@@ -194,24 +175,20 @@ def aggregate_daily(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
 
+    print(f"data.py Agregación diaria completada. Total filas: {len(aggregated)}")
+    print(aggregated.head())
+
     if aggregated.empty:
         raise ValueError("La agregación diaria no produjo resultados.")
 
     return aggregated
 
-def aggregate_trade_day(g: pd.DataFrame) -> pd.Series:
-    shares = float(g["numero_acciones"].sum()) if g["numero_acciones"].notna().any() else np.nan
-    turnover = float(g["valor_efecto"].sum()) if g["valor_efecto"].notna().any() else np.nan
 
-    if pd.notna(shares) and shares > 0 and pd.notna(turnover):
-        vwap = turnover / shares
-    else:
-        vwap = float(g["precio"].iloc[-1])
-
-    return pd.Series({
-        'close_last': float(g["precio"].iloc[-1]),
-        'close_vwap': float(vwap),
-        'volume_shares_day': shares,
-        'turnover_value_day': turnover,
-        'n_trades_day': int(len(g))
-    })
+__all__ = [
+    "load_master_dataset",
+    "get_company_history",
+    "build_input_row",
+    "download_and_clean_bvg",
+    "aggregate_daily",
+    "aggregate_trade_day",
+]

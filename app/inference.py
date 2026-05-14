@@ -6,12 +6,8 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from qiskit.circuit.library import ZZFeatureMap
-from qiskit.primitives import StatevectorSampler
-from qiskit_machine_learning.kernels import FidelityQuantumKernel
-from qiskit_machine_learning.state_fidelities import ComputeUncompute
-
 from .config import MODELS_DIR, TARGET_H, TEST_SIZE, COMPANY_FILE_MAP
+from bvg_core.quantum import build_qkernel, build_quantum_train_matrix as _build_quantum_train_matrix
 
 def get_company_tag(company: str) -> str:
     if company not in COMPANY_FILE_MAP:
@@ -42,23 +38,6 @@ def load_classical_artifacts(company: str, model_name: str) -> dict:
         "pipeline": pipeline,
         "model_name": f"{tag}_{model_name}",
     }
-
-
-def build_qkernel(config: dict) -> FidelityQuantumKernel:
-    feature_dim = int(config.get("feature_dimension", 5))
-    reps = int(config.get("reps", 2))
-    entanglement = config.get("entanglement", "linear")
-    
-    feature_map = ZZFeatureMap(
-        feature_dimension=feature_dim,
-        reps=reps,
-        entanglement=entanglement,
-    )
-    
-    fidelity = ComputeUncompute(sampler=StatevectorSampler(seed=42))
-    return FidelityQuantumKernel(feature_map=feature_map, fidelity=fidelity)
-
-
 def load_quantum_artifacts(company: str, model_name: str) -> dict:
     tag = get_company_tag(company)
     base = MODELS_DIR / "quantum"
@@ -117,32 +96,15 @@ def build_quantum_train_matrix(
     train_end_date: str | None = None,
     test_size: int | None = TEST_SIZE,
 ) -> np.ndarray:
-    if "horizonte" in df.columns:
-        df = df.loc[df["horizonte"].astype(str) == TARGET_H].copy()
-    company_df = df.loc[df["empresa"] == company].sort_values("fecha").copy()
-    if company_df.empty:
-        raise ValueError(f"No hay datos de entrenamiento para {company}.")
-    if train_end_date:
-        train_end = pd.to_datetime(train_end_date, errors="coerce")
-        if pd.notna(train_end):
-            company_df = company_df.loc[company_df["fecha"] <= train_end].copy()
-    company_df = company_df.dropna(subset=feature_columns + ["fecha", "empresa"]).copy()
-    if test_size is not None and test_size > 0 and len(company_df) <= test_size:
-        raise ValueError(
-            f"Datos insuficientes para reconstruir X_train_q (n={len(company_df)})."
-        )
-    if test_size is None or test_size <= 0:
-        train_df = company_df.copy()
-    else:
-        train_df = company_df.iloc[: len(company_df) - test_size].copy()
-    
-    if train_df.empty:
-        raise ValueError("No hay datos suficientes tras el split temporal.")
-    X_train = train_df.loc[:, feature_columns].copy()
-    if X_train.isna().any().any():
-        raise ValueError("X_train contiene NaN luego de limpiar.")
-    X_train_q = pca.transform(scaler.transform(X_train))
-    return X_train_q
+    return _build_quantum_train_matrix(
+        df,
+        company,
+        feature_columns,
+        scaler,
+        pca,
+        train_end_date=train_end_date,
+        test_size=test_size,
+    )
 
 
 def infer_classical(pipeline, X_row: pd.DataFrame) -> dict:
