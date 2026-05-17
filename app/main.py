@@ -23,6 +23,11 @@ from app.ui import (
     build_cards,
     show_freeze_metrics,
 )
+from app.retrain import (
+    retrain_classical_model,
+    should_retrain,
+    should_retrain_quantum,
+)
 from app.viz import build_plotly
 
 
@@ -62,6 +67,43 @@ def main() -> None:
 
     freeze_csv = ROOT / "results" / "fase4_comparativa" / "BVG_subfase8_comparativa_h5.csv"
     show_freeze_metrics(freeze_csv)
+
+    # Retrain gate after catchup
+    for company in tab_companies:
+        classical_drift = should_retrain(log_df, company, "classical")
+        quantum_msg = should_retrain_quantum(log_df, company)
+        if classical_drift:
+            resolved = log_df.loc[
+                (log_df["company"] == company)
+                & (log_df["model_family"] == "classical")
+                & (log_df["status"].isin(["ACIERTO", "FALLO"]))
+            ]
+            trigger_acc = 0.0
+            if len(resolved) >= 4:
+                trigger_acc = float((resolved.tail(4)["status"] == "ACIERTO").mean())
+            st.warning(
+                f"**{company}** — El modelo clásico muestra deriva "
+                f"(rolling accuracy = {trigger_acc:.2f})."
+            )
+            if st.button(
+                "Reentrenar modelo clásico",
+                key=f"retrain_classical_{company}",
+            ):
+                try:
+                    with st.spinner(
+                        f"Reentrenando modelo clásico para {company}..."
+                    ):
+                        result = retrain_classical_model(
+                            company, base_df, trigger_accuracy=trigger_acc
+                        )
+                    st.success(
+                        f"Reentrenamiento completado. "
+                        f"Nuevo test accuracy: {result['test_accuracy']:.3f}"
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    st.error(f"Error en reentrenamiento: {exc}")
+        if quantum_msg:
+            st.warning(quantum_msg)
 
     if tab_companies:
         tabs = st.tabs(tab_companies)
