@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import joblib
@@ -8,16 +7,12 @@ import numpy as np
 import pandas as pd
 from .config import MODELS_DIR, TARGET_H, TEST_SIZE, COMPANY_FILE_MAP
 from bvg_core.quantum import build_qkernel, build_quantum_train_matrix as _build_quantum_train_matrix
+from bvg_core.utils import load_manifest
 
 def get_company_tag(company: str) -> str:
     if company not in COMPANY_FILE_MAP:
         raise ValueError(f"Empresa no mapeada: {company}")
     return COMPANY_FILE_MAP[company]
-
-def load_manifest(path: Path) -> dict:
-    if not path.exists():
-        raise FileNotFoundError(f"Manifest no encontrado: {path.as_posix()}")
-    return json.loads(path.read_text(encoding="utf-8"))
 
 def load_classical_artifacts(company: str, model_name: str) -> dict:
     tag = get_company_tag(company)
@@ -116,7 +111,12 @@ def infer_classical(pipeline, X_row: pd.DataFrame) -> dict:
 
 
 def infer_quantum(
-    bundle: dict, X_row: pd.DataFrame, master_df: pd.DataFrame, company: str
+    bundle: dict,
+    X_row: pd.DataFrame,
+    master_df: pd.DataFrame,
+    company: str,
+    *,
+    X_train_q_cached: np.ndarray | None = None,
 ) -> dict:
     scaler = bundle["scaler"]
     pca = bundle["pca"]
@@ -125,10 +125,17 @@ def infer_quantum(
     feature_columns = list(bundle["manifest"]["feature_columns"])
 
     train_end_date = bundle["manifest"].get("train_end_date")
-    X_train_q = build_quantum_train_matrix(
-        master_df, company, feature_columns, scaler, pca,
-        train_end_date=train_end_date, test_size=0,
-    )
+    X_train_q = X_train_q_cached
+    if X_train_q is None:
+        X_train_q = build_quantum_train_matrix(
+            master_df,
+            company,
+            feature_columns,
+            scaler,
+            pca,
+            train_end_date=train_end_date,
+            test_size=0,
+        )
     Xq = pca.transform(scaler.transform(X_row))
     K = qkernel.evaluate(x_vec=Xq, y_vec=X_train_q)
     y_pred = int(svc.predict(K)[0])
