@@ -175,9 +175,6 @@ def aggregate_daily(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
 
-    print(f"data.py Agregación diaria completada. Total filas: {len(aggregated)}")
-    print(aggregated.head())
-
     if aggregated.empty:
         raise ValueError("La agregación diaria no produjo resultados.")
 

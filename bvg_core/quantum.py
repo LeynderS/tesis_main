@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from qiskit.circuit.library import ZZFeatureMap
+from qiskit.circuit.library import zz_feature_map
 from qiskit.primitives import StatevectorSampler
 from qiskit_machine_learning.kernels import FidelityQuantumKernel
 from qiskit_machine_learning.state_fidelities import ComputeUncompute
@@ -15,7 +15,7 @@ def build_qkernel(config: dict) -> FidelityQuantumKernel:
     reps = int(config.get("reps", 2))
     entanglement = config.get("entanglement", "linear")
 
-    feature_map = ZZFeatureMap(
+    feature_map = zz_feature_map(
         feature_dimension=feature_dim,
         reps=reps,
         entanglement=entanglement,
