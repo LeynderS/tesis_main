@@ -16,7 +16,7 @@ from .inference import (
     load_quantum_artifacts,
     validate_feature_row,
 )
-
+from bvg_core.data import get_friday_data_with_fallback
 
 def reset_log_file(log_path: Path) -> None:
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -74,94 +74,6 @@ def append_log(log_path: Path, record: dict) -> None:
     row_df.to_csv(log_path, mode="a", header=False, index=False)
 
 
-def get_friday_data_with_fallback(
-    price_df: pd.DataFrame,
-    company: str,
-    target_friday: pd.Timestamp,
-    *,
-    max_back_days: int = BVG_FALLBACK_MAX_DAYS,
-) -> tuple[pd.Timestamp | None, float | None, str]:
-    if price_df.empty:
-        return None, None, "Datos insuficientes"
-
-    company_df = price_df.loc[price_df["empresa"] == company].copy()
-    if company_df.empty:
-        return None, None, "Datos insuficientes"
-
-    company_df["fecha"] = pd.to_datetime(company_df["fecha"], errors="coerce").dt.normalize()
-    company_df = company_df.loc[company_df["fecha"].notna()].copy()
-    company_df = company_df.loc[company_df["fecha"] <= target_friday].copy()
-    if company_df.empty:
-        return None, None, "Datos insuficientes"
-
-    close_by_date = (
-        company_df.sort_values("fecha")
-        .groupby("fecha", as_index=True)["close_last"]
-        .last()
-    )
-
-    target_friday = pd.to_datetime(target_friday).normalize()
-    for delta in range(0, max_back_days + 1):
-        candidate = target_friday - timedelta(days=delta)
-        if candidate in close_by_date.index:
-            close_val = float(close_by_date.loc[candidate])
-            weekday = candidate.strftime("%A").lower()
-            weekday_map = {
-                "monday": "lunes",
-                "tuesday": "martes",
-                "wednesday": "miércoles",
-                "thursday": "jueves",
-                "friday": "viernes",
-                "saturday": "sábado",
-                "sunday": "domingo",
-            }
-            weekday_es = weekday_map.get(weekday, weekday)
-            if delta == 0:
-                obs = f"Datos del día {weekday_es} ({candidate.date().isoformat()})."
-            else:
-                obs = (
-                    "Usando datos del día "
-                    f"{weekday_es} ({candidate.date().isoformat()}) "
-                    "por ausencia en viernes."
-                )
-            return candidate, close_val, obs
-
-    # Fallback extendido: reutilizar último dato disponible anterior
-    if not close_by_date.empty:
-        last_available = close_by_date.index.max()
-        close_val = float(close_by_date.loc[last_available])
-        return (
-            last_available,
-            close_val,
-            f"Reutilizando último dato disponible ({last_available.date().isoformat()}) "
-            "por ausencia total en semana objetivo.",
-        )
-
-    return None, None, "Datos insuficientes"
-
-
-def compute_target_date(trading_dates: pd.Series, fecha_t: pd.Timestamp) -> pd.Timestamp:
-    """Regla t+5: viernes inmediato siguiente; si no hay transacciones, jueves previo."""
-    if trading_dates.empty:
-        raise ValueError("No hay fechas de trading disponibles para calcular t+5.")
-    trading_dates = pd.to_datetime(trading_dates).dt.normalize()
-    fecha_t = pd.to_datetime(fecha_t).normalize()
-    weekday = fecha_t.weekday()  # Monday=0 ... Friday=4
-    days_to_next_friday = (4 - weekday) % 7
-    if days_to_next_friday == 0:
-        days_to_next_friday = 7
-    target_friday = fecha_t + timedelta(days=days_to_next_friday)
-    if target_friday in set(trading_dates):
-        return target_friday
-
-    thursday = target_friday - timedelta(days=1)
-    if thursday in set(trading_dates):
-        return thursday
-
-    previous_dates = trading_dates[trading_dates < target_friday]
-    if previous_dates.empty:
-        raise ValueError("No hay fecha previa disponible para resolver t+5.")
-    return previous_dates.max()
 
 
 def resolve_t_plus_5(
@@ -294,6 +206,7 @@ def catchup_loop(
                 work_df,
                 company,
                 target_date,
+                max_back_days=BVG_FALLBACK_MAX_DAYS,
             )
             if fecha_usada is None or close_t5 is None:
                 log_df.loc[idx, "Observacion_Datos"] = observacion
@@ -356,7 +269,10 @@ def catchup_loop(
 
         for company in companies:
             fecha_usada, close_t, observacion = get_friday_data_with_fallback(
-                work_df, company, data_friday
+                work_df,
+                company,
+                data_friday,
+                max_back_days=BVG_FALLBACK_MAX_DAYS,
             )
             if fecha_usada is None or close_t is None:
                 continue
