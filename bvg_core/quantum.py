@@ -7,7 +7,7 @@ from qiskit.primitives import StatevectorSampler
 from qiskit_machine_learning.kernels import FidelityQuantumKernel
 from qiskit_machine_learning.state_fidelities import ComputeUncompute
 
-from .config import TARGET_H, TEST_SIZE
+from bvg_core.config import TEST_SIZE
 
 
 def build_qkernel(config: dict) -> FidelityQuantumKernel:
@@ -35,8 +35,6 @@ def build_quantum_train_matrix(
     train_end_date: str | None = None,
     test_size: int | None = TEST_SIZE,
 ) -> np.ndarray:
-    if "horizonte" in df.columns:
-        df = df.loc[df["horizonte"].astype(str) == TARGET_H].copy()
     company_df = df.loc[df["empresa"] == company].sort_values("fecha").copy()
     if company_df.empty:
         raise ValueError(f"No hay datos de entrenamiento para {company}.")

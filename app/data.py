@@ -3,16 +3,16 @@ from __future__ import annotations
 from io import BytesIO
 import zipfile
 
-from pathlib import Path
-
 import pandas as pd
-import numpy as np
 import requests
 
 from bvg_core.data import aggregate_trade_day, load_master_dataset
-from .config import (
-    BVG_COLUMN_MAP,
-    BVG_NUMERIC_COLUMNS,
+from bvg_core.config import (
+    FECHA_COL,
+    EMISOR_COL,
+    PRECIO_COL,
+    ACCIONES_COL,
+    VALOR_EFECTO_COL,
     BVG_REQUIRED_COLUMNS,
 )
 
@@ -126,18 +126,15 @@ def download_and_clean_bvg(
         )
 
     df = raw_df.loc[:, list(BVG_REQUIRED_COLUMNS)].copy()
-    df = df.rename(columns=BVG_COLUMN_MAP)
-    df["fecha"] = pd.to_datetime(df["fecha"], origin="1899-12-30", unit="D", errors="coerce")
-    df["empresa"] = df["empresa"].astype(str).str.strip()
-
-    if df["empresa"].isna().any() or df["fecha"].isna().any():
-        df = df.loc[df["empresa"].notna() & df["fecha"].notna()].copy()
-
-    for col in BVG_NUMERIC_COLUMNS:
+    for col in [PRECIO_COL, ACCIONES_COL, VALOR_EFECTO_COL]:
         df.loc[:, col] = _clean_numeric_series(df[col])
-    df = df.loc[df["empresa"].isin(target_issuers)].copy()
-    required_fields = ["fecha", "empresa", *BVG_NUMERIC_COLUMNS]
-    df = df.loc[df[required_fields].notna().all(axis=1)].copy()
+
+    # Parse dates and filter
+    df[FECHA_COL] = pd.to_datetime(df[FECHA_COL], origin="1899-12-30", unit="D", errors="coerce")
+    df[EMISOR_COL] = df[EMISOR_COL].astype(str).str.strip()
+
+    df = df.loc[df[EMISOR_COL].isin(target_issuers)].copy()    
+    df = df.loc[df[BVG_REQUIRED_COLUMNS].notna().all(axis=1)].copy()
 
     if df.empty:
         raise ValueError("No se encontraron filas válidas para emisores objetivo.")
@@ -164,16 +161,18 @@ def aggregate_daily(df: pd.DataFrame) -> pd.DataFrame:
         raise ValueError("No hay datos BVG para agregar.")
 
     work_df = df.copy()
-    work_df["fecha"] = pd.to_datetime(work_df["fecha"], errors="coerce")
-    work_df = work_df.loc[work_df["fecha"].notna()].copy()
-    work_df["fecha"] = work_df["fecha"].dt.normalize()
-    work_df = work_df.sort_values(["empresa", "fecha"])
+    work_df[FECHA_COL] = pd.to_datetime(work_df[FECHA_COL], errors="coerce")
+    work_df = work_df.loc[work_df[FECHA_COL].notna()].copy()
+    work_df[FECHA_COL] = work_df[FECHA_COL].dt.normalize()
+    work_df = work_df.sort_values([EMISOR_COL, FECHA_COL])
 
     aggregated = (
-        work_df.groupby(["empresa", "fecha"])
+        work_df.groupby([EMISOR_COL, FECHA_COL])
         .apply(aggregate_trade_day)
         .reset_index()
     )
+
+    aggregated = aggregated.rename(columns={FECHA_COL: "fecha", EMISOR_COL: "empresa"})
 
     if aggregated.empty:
         raise ValueError("La agregación diaria no produjo resultados.")

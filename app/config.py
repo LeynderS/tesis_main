@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from bvg_core.config import (
-    BVG_COLUMN_MAP,
-    BVG_NUMERIC_COLUMNS,
     BVG_REQUIRED_COLUMNS,
     COMPANY_FILE_MAP,
     DATA_PATH,
@@ -14,7 +12,7 @@ from bvg_core.config import (
     ROOT,
     TARGET_H,
     TEST_SIZE,
-    COMPANIES as BVG_TARGET_ISSUERS,
+    COMPANIES,
 )
 
 BVG_URL = "https://www.bolsadevaloresguayaquil.com/boletines/historicos/BVG_Acciones.xlsx"

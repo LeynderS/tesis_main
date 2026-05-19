@@ -6,9 +6,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .config import BVG_FALLBACK_MAX_DAYS, LOG_COLUMNS, TARGET_H, COMPANY_ABBR_MAP
-from .features import build_features_for_company
-from .inference import (
+from app.config import BVG_FALLBACK_MAX_DAYS, LOG_COLUMNS, TARGET_H, COMPANY_ABBR_MAP
+from app.inference import (
     build_quantum_train_matrix,
     infer_classical,
     infer_quantum,
@@ -17,6 +16,7 @@ from .inference import (
     validate_feature_row,
 )
 from bvg_core.data import compute_target_date, get_friday_data_with_fallback
+from bvg_core.features import build_features_for_company
 
 def reset_log_file(log_path: Path) -> None:
     log_path.parent.mkdir(parents=True, exist_ok=True)

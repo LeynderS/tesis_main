@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pandas as pd
 import streamlit as st
 
-from app.config import BVG_TARGET_ISSUERS, BVG_URL, DATA_PATH, LOG_PATH, LAST_RUN_PATH, ROOT
+from app.config import COMPANIES, BVG_URL, DATA_PATH, LOG_PATH, LAST_RUN_PATH, ROOT
 from app.data import (
     aggregate_daily,
     download_and_clean_bvg,
@@ -34,7 +33,7 @@ from app.viz import build_plotly
 def main() -> None:
     setup_page()
     base_df = load_master_dataset(Path(DATA_PATH))
-    tab_companies = list(BVG_TARGET_ISSUERS)
+    tab_companies = list(COMPANIES)
 
     try:
         log_df = read_log(Path(LOG_PATH))
@@ -47,7 +46,7 @@ def main() -> None:
         try:
             write_last_run(Path(LAST_RUN_PATH))
             with st.spinner("Descargando y limpiando datos BVG..."):
-                bvg_df = download_and_clean_bvg(BVG_URL, BVG_TARGET_ISSUERS)
+                bvg_df = download_and_clean_bvg(BVG_URL, COMPANIES)
                 daily_df = aggregate_daily(bvg_df)
 
             log_df = read_log(Path(LOG_PATH))

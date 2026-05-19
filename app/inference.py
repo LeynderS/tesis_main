@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from pathlib import Path
+import json
 
 import joblib
 import numpy as np
 import pandas as pd
-from .config import MODELS_DIR, TARGET_H, TEST_SIZE, COMPANY_FILE_MAP
+from app.config import MODELS_DIR, TEST_SIZE, COMPANY_FILE_MAP
 from bvg_core.quantum import build_qkernel, build_quantum_train_matrix as _build_quantum_train_matrix
 from bvg_core.utils import load_manifest
 
@@ -33,6 +33,7 @@ def load_classical_artifacts(company: str, model_name: str) -> dict:
         "pipeline": pipeline,
         "model_name": f"{tag}_{model_name}",
     }
+    
 def load_quantum_artifacts(company: str, model_name: str) -> dict:
     tag = get_company_tag(company)
     base = MODELS_DIR / "quantum"

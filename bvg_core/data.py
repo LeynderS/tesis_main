@@ -6,7 +6,19 @@ from datetime import timedelta
 import pandas as pd
 import numpy as np
 
-from .config import REQUIRED_RAW_COLUMNS
+from bvg_core.config import (
+    REQUIRED_RAW_COLUMNS, 
+    ACCIONES_COL, 
+    VALOR_EFECTO_COL, 
+    PRECIO_COL, 
+    FECHA_COL_2,
+    EMPRESA_COL,
+    CLOSE_LAST_COL,
+    CLOSE_VWAP_COL,
+    VOLUME_SHARES_DAY_COL,
+    TURNOVER_VALUE_DAY_COL,
+    N_TRADES_DAY_COL,
+)
 
 
 def load_master_dataset(path: Path) -> pd.DataFrame:
@@ -16,11 +28,11 @@ def load_master_dataset(path: Path) -> pd.DataFrame:
         )
 
     df = pd.read_csv(path)
-    if "fecha" not in df.columns:
+    if FECHA_COL_2 not in df.columns:
         raise ValueError("El dataset no contiene la columna 'fecha'.")
 
-    df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce")
-    if df["fecha"].isna().any():
+    df[FECHA_COL_2] = pd.to_datetime(df["fecha"], errors="coerce")
+    if df[FECHA_COL_2].isna().any():
         raise ValueError("Se detectaron fechas inválidas en el dataset base.")
 
     missing = REQUIRED_RAW_COLUMNS.difference(df.columns)
@@ -31,20 +43,20 @@ def load_master_dataset(path: Path) -> pd.DataFrame:
 
 
 def aggregate_trade_day(g: pd.DataFrame) -> pd.Series:
-    shares = float(g["numero_acciones"].sum()) if g["numero_acciones"].notna().any() else np.nan
-    turnover = float(g["valor_efecto"].sum()) if g["valor_efecto"].notna().any() else np.nan
+    shares = float(g[ACCIONES_COL].sum()) if g[ACCIONES_COL].notna().any() else np.nan
+    turnover = float(g[VALOR_EFECTO_COL].sum()) if g[VALOR_EFECTO_COL].notna().any() else np.nan
 
     if pd.notna(shares) and shares > 0 and pd.notna(turnover):
         vwap = turnover / shares
     else:
-        vwap = float(g["precio"].iloc[-1])
+        vwap = float(g[PRECIO_COL].iloc[-1])
 
     return pd.Series({
-        'close_last': float(g["precio"].iloc[-1]),
-        'close_vwap': float(vwap),
-        'volume_shares_day': shares,
-        'turnover_value_day': turnover,
-        'n_trades_day': int(len(g))
+        CLOSE_LAST_COL: float(g[PRECIO_COL].iloc[-1]),
+        CLOSE_VWAP_COL: float(vwap),
+        VOLUME_SHARES_DAY_COL: shares,
+        TURNOVER_VALUE_DAY_COL: turnover,
+        N_TRADES_DAY_COL: int(len(g))
     })
 
 
@@ -58,19 +70,19 @@ def get_friday_data_with_fallback(
     if price_df.empty:
         return None, None, "Datos insuficientes"
 
-    company_df = price_df.loc[price_df["empresa"] == company].copy()
+    company_df = price_df.loc[price_df[EMPRESA_COL] == company].copy()
     if company_df.empty:
         return None, None, "Datos insuficientes"
 
-    company_df["fecha"] = pd.to_datetime(company_df["fecha"], errors="coerce").dt.normalize()
-    company_df = company_df.loc[company_df["fecha"].notna()].copy()
-    company_df = company_df.loc[company_df["fecha"] <= target_friday].copy()
+    company_df[FECHA_COL_2] = pd.to_datetime(company_df["fecha"], errors="coerce").dt.normalize()
+    company_df = company_df.loc[company_df[FECHA_COL_2].notna()].copy()
+    company_df = company_df.loc[company_df[FECHA_COL_2] <= target_friday].copy()
     if company_df.empty:
         return None, None, "Datos insuficientes"
 
     close_by_date = (
-        company_df.sort_values("fecha")
-        .groupby("fecha", as_index=True)["close_last"]
+        company_df.sort_values(FECHA_COL_2)
+        .groupby(FECHA_COL_2, as_index=True)[CLOSE_LAST_COL]
         .last()
     )
 
