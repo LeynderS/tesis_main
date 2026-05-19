@@ -114,6 +114,7 @@ def retrain_classical_model(
     trigger_accuracy: float,
     *,
     model_name: str = "h5",
+    dataset_version: str | None = None,
 ) -> dict[str, Any]:
     """Retrain a classical SVC model using original manifest hyperparameters."""
     manifest = _load_manifest(company, model_name)
@@ -181,6 +182,7 @@ def retrain_classical_model(
         "trigger_accuracy": float(trigger_accuracy),
         "test_accuracy": accuracy,
         "smoke_test_passed": True,
+        "dataset_version": dataset_version or "v1.0.0-legacy",
     }
     manifest.setdefault("retrain_history", []).append(history_entry)
     manifest_path = _get_manifest_path(company, model_name)

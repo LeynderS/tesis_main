@@ -7,6 +7,7 @@ import pandas as pd
 import requests
 
 from bvg_core.data import aggregate_trade_day, load_master_dataset
+from bvg_core.dataset import merge_master_with_live, build_versioned_features
 from bvg_core.config import (
     FECHA_COL,
     EMISOR_COL,
@@ -180,6 +181,19 @@ def aggregate_daily(df: pd.DataFrame) -> pd.DataFrame:
     return aggregated
 
 
+def merge_and_build_features(
+    master_df: pd.DataFrame,
+    daily_df: pd.DataFrame,
+    *,
+    horizons: list[int] | None = None,
+) -> pd.DataFrame:
+    """Merge master with live daily data and rebuild features (h=5 only)."""
+    if horizons is None:
+        horizons = [5]
+    merged = merge_master_with_live(master_df, daily_df)
+    return build_versioned_features(merged, horizons=horizons)
+
+
 __all__ = [
     "load_master_dataset",
     "get_company_history",
@@ -187,4 +201,5 @@ __all__ = [
     "download_and_clean_bvg",
     "aggregate_daily",
     "aggregate_trade_day",
+    "merge_and_build_features",
 ]

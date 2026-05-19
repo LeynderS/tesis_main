@@ -119,6 +119,13 @@ def infer_quantum(
     *,
     X_train_q_cached: np.ndarray | None = None,
 ) -> dict:
+    """Run quantum inference. 
+    ``master_df`` must be the **full featured dataset** 
+    (including all historical rows with features already built).  
+    ``build_quantum_train_matrix``
+    performs its own temporal split and NaN dropping internally, so callers
+    should pass the complete versioned master, not a pre-filtered subset.
+    """
     scaler = bundle["scaler"]
     pca = bundle["pca"]
     svc = bundle["svc"]

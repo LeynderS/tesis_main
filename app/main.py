@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 
 import streamlit as st
@@ -10,6 +11,7 @@ from app.data import (
     download_and_clean_bvg,
     get_company_history,
     load_master_dataset,
+    merge_and_build_features,
 )
 from app.logs import read_log, run_global_catchup, should_run_catchup
 from app.state import read_last_run, write_last_run, format_last_run
@@ -28,11 +30,21 @@ from app.retrain import (
     should_retrain_quantum,
 )
 from app.viz import build_plotly
+from bvg_core.config import PROCESSED_DIR
+from bvg_core.dataset import get_latest_dataset_version, update_latest_marker
+from bvg_core.utils import build_dataset_version
 
 
 def main() -> None:
     setup_page()
-    base_df = load_master_dataset(Path(DATA_PATH))
+
+    # Load latest versioned dataset or fallback to legacy master
+    versioned_path = get_latest_dataset_version()
+    if versioned_path:
+        base_df = load_master_dataset(versioned_path)
+    else:
+        base_df = load_master_dataset(Path(DATA_PATH))
+
     tab_companies = list(COMPANIES)
 
     try:
@@ -42,6 +54,9 @@ def main() -> None:
     except Exception:  # noqa: BLE001
         last_run_str = "—"
 
+    merged_df = None
+    dataset_version = None
+
     if render_top_bar(last_run_str):
         try:
             write_last_run(Path(LAST_RUN_PATH))
@@ -49,10 +64,22 @@ def main() -> None:
                 bvg_df = download_and_clean_bvg(BVG_URL, COMPANIES)
                 daily_df = aggregate_daily(bvg_df)
 
+            with st.spinner("Fusionando datos y reconstruyendo features..."):
+                merged_df = merge_and_build_features(base_df, daily_df, horizons=[5])
+
+            date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+            versioned_csv = PROCESSED_DIR / f"BVG_features_svc_master_v{date_str}.csv"
+            merged_df.to_csv(versioned_csv, index=False)
+            update_latest_marker(versioned_csv)
+            dataset_version = build_dataset_version(versioned_csv)
+            st.info(f"Dataset versionado: {dataset_version}")
+
             log_df = read_log(Path(LOG_PATH))
             if should_run_catchup(log_df, daily_df):
                 with st.spinner("Ejecutando catch-up y calculando inferencias..."):
-                    run_global_catchup(Path(LOG_PATH), daily_df, base_df, model_name="h5")
+                    run_global_catchup(
+                        Path(LOG_PATH), daily_df, merged_df, model_name="h5"
+                    )
                 st.success("Proceso completado: bitácora actualizada.")
                 st.rerun()
             else:
@@ -66,6 +93,9 @@ def main() -> None:
 
     freeze_csv = ROOT / "results" / "fase4_comparativa" / "BVG_subfase8_comparativa_h5.csv"
     show_freeze_metrics(freeze_csv)
+
+    # Use merged data when available, otherwise fall back to base
+    work_df = merged_df if merged_df is not None else base_df
 
     # Retrain gate after catchup
     for company in tab_companies:
@@ -93,7 +123,10 @@ def main() -> None:
                         f"Reentrenando modelo clásico para {company}..."
                     ):
                         result = retrain_classical_model(
-                            company, base_df, trigger_accuracy=trigger_acc
+                            company,
+                            work_df,
+                            trigger_accuracy=trigger_acc,
+                            dataset_version=dataset_version,
                         )
                     st.success(
                         f"Reentrenamiento completado. "
@@ -109,7 +142,7 @@ def main() -> None:
         for tab, company in zip(tabs, tab_companies, strict=False):
             with tab:
                 try:
-                    history = get_company_history(base_df, company)
+                    history = get_company_history(work_df, company)
                     build_cards(log_df, company)
                     show_quick_history(history, company)
                     fig = build_plotly(history, log_df, company)
