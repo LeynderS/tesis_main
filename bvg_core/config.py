@@ -16,6 +16,7 @@ DATA_DICT_PATH = PROCESSED_DIR / "BVG_features_svc_dictionary.csv"
 DATA_PATH = DATA_MASTER_PATH  # alias for backward compat
 CLASSICAL_DIR = MODELS_DIR / "classical"
 QUANTUM_DIR = MODELS_DIR / "quantum"
+QUANTUM_RETRAINED_DIR = QUANTUM_DIR / "retrained"
 LOG_PATH = ROOT / "app" / "logs_trazabilidad.csv"
 LAST_RUN_PATH = ROOT / "app" / "last_run.csv"
 FASE4_RESULTS = RESULTS_DIR / "fase4_comparativa"

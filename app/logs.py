@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from app.config import BVG_FALLBACK_MAX_DAYS, LOG_COLUMNS, TARGET_H, COMPANY_ABBR_MAP
+from app.config import BVG_FALLBACK_MAX_DAYS, LOG_COLUMNS, TARGET_H, COMPANY_ABBR_MAP, COMPANY_FILE_MAP, MODELS_DIR
 from app.inference import (
     build_quantum_train_matrix,
     infer_classical,
@@ -29,7 +29,9 @@ def ensure_log_file(log_path: Path, *, reset: bool = False) -> None:
         return
 
     df_header = pd.read_csv(log_path, nrows=0)
-    if list(df_header.columns) != LOG_COLUMNS:
+    current_cols = list(df_header.columns)
+
+    if current_cols != LOG_COLUMNS:
         reset_log_file(log_path)
 
 
@@ -40,6 +42,36 @@ def read_log(log_path: Path) -> pd.DataFrame:
     if missing:
         raise ValueError(f"Log corrupto. Columnas faltantes: {missing}")
     return df
+
+
+def detect_model_version(company: str, model_family: str, model_name: str) -> str:
+    """Detect if a retrained model artifact exists and return its version string.
+
+    Returns 'original' if no retrained artifact exists.
+    Returns 'retrained_{YYYYMMDD}' if a retrained artifact exists.
+    """
+    tag = COMPANY_FILE_MAP[company]
+    retrained_dir = MODELS_DIR / model_family / "retrained"
+
+    if not retrained_dir.exists():
+        return "original"
+
+    if model_family == "classical":
+        pattern = f"{tag}_{model_name}_pipeline_retrained_*.joblib"
+        matches = sorted(retrained_dir.glob(pattern))
+    else:
+        pattern = f"{tag}_{model_name}_svc_retrained_*.joblib"
+        matches = []
+        for subdir in sorted(retrained_dir.iterdir()):
+            if subdir.is_dir():
+                matches.extend(sorted(subdir.glob(pattern)))
+
+    if not matches:
+        return "original"
+
+    latest = matches[-1]
+    date_str = latest.stem.split("_retrained_")[-1]
+    return f"retrained_{date_str}"
 
 
 def should_run_catchup(log_df: pd.DataFrame, price_df: pd.DataFrame) -> bool:
@@ -130,8 +162,8 @@ class BundleCache:
         self._bundles: dict[str, dict] = {}
         self._xtrain: dict[str, np.ndarray] = {}
 
-    def get_bundle(self, company: str, family: str, model_name: str) -> dict:
-        key = f"{company}:{family}:{model_name}"
+    def get_bundle(self, company: str, family: str, model_name: str, version: str = "original") -> dict:
+        key = f"{company}:{family}:{model_name}:{version}"
         if key not in self._bundles:
             if family == "classical":
                 self._bundles[key] = load_classical_artifacts(company, model_name)
@@ -143,6 +175,10 @@ class BundleCache:
         if key not in self._xtrain:
             self._xtrain[key] = compute_fn()
         return self._xtrain[key]
+
+    def clear(self) -> None:
+        self._bundles.clear()
+        self._xtrain.clear()
 
 
 def generate_semantic_id(
@@ -283,6 +319,8 @@ def predict_for_friday(
     companies: list[str],
     current_friday: pd.Timestamp,
     week_num: int,
+    model_version: str = "original",
+    model_versions: dict[str, str] | None = None,
 ) -> list[dict]:
     data_friday = current_friday - timedelta(days=7)
     target_date = compute_target_date(work_df["fecha"], data_friday)
@@ -328,8 +366,11 @@ def predict_for_friday(
             if not log_df.empty and existing_mask.any():
                 continue
 
-            bundle_key = f"{company}:{family}:{model_name}"
-            bundle = cache.get_bundle(company, family, model_name)
+            version = model_version
+            if model_versions is not None:
+                version = model_versions.get(f"{company}:{family}", model_version)
+            bundle_key = f"{company}:{family}:{model_name}:{version}"
+            bundle = cache.get_bundle(company, family, model_name, version=version)
 
             feature_columns = list(bundle["manifest"]["feature_columns"])
             X_row = validate_feature_row(feature_row, feature_columns)
@@ -373,6 +414,7 @@ def predict_for_friday(
                 "company": company,
                 "model_family": family,
                 "model_name": bundle["model_name"],
+                "model_version": bundle.get("model_version", version),
                 "horizonte": TARGET_H,
                 "fecha_t": data_friday.date().isoformat(),
                 "close_t": float(close_t),
@@ -399,6 +441,7 @@ def catchup_loop(
     model_families: tuple[str, ...] = ("classical", "quantum"),
     default_start_date: str = "2026-03-27",
     history_window: int = 30,
+    cache: BundleCache | None = None,
 ) -> pd.DataFrame:
     log_df = read_log(log_path)
     work_df = prepare_work_df(price_df)
@@ -413,8 +456,14 @@ def catchup_loop(
     if start_ts > last_valid_target_friday:
         return log_df
 
-    cache = BundleCache()
+    if cache is None:
+        cache = BundleCache()
     companies = sorted(work_df["empresa"].dropna().unique().tolist())
+
+    model_versions = {}
+    for company in companies:
+        for family in model_families:
+            model_versions[f"{company}:{family}"] = detect_model_version(company, family, model_name)
 
     current_friday = start_ts
     week_num = 1
@@ -431,6 +480,7 @@ def catchup_loop(
             companies=companies,
             current_friday=current_friday,
             week_num=week_num,
+            model_versions=model_versions,
         )
 
         if new_records:
@@ -451,6 +501,7 @@ def run_global_catchup(
     master_df: pd.DataFrame,
     *,
     model_name: str = "h5",
+    cache: BundleCache | None = None,
 ) -> pd.DataFrame:
     return catchup_loop(
         log_path,
@@ -458,4 +509,5 @@ def run_global_catchup(
         model_name,
         master_df,
         model_families=("classical", "quantum"),
+        cache=cache,
     )

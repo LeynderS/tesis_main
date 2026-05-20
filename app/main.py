@@ -13,7 +13,7 @@ from app.data import (
     load_master_dataset,
     merge_and_build_features,
 )
-from app.logs import read_log, run_global_catchup, should_run_catchup
+from app.logs import read_log, run_global_catchup, should_run_catchup, BundleCache
 from app.state import read_last_run, write_last_run, format_last_run
 from app.ui import (
     render_top_bar,
@@ -37,6 +37,9 @@ from bvg_core.utils import build_dataset_version
 
 def main() -> None:
     setup_page()
+
+    if "bundle_cache" not in st.session_state:
+        st.session_state.bundle_cache = BundleCache()
 
     # Load latest versioned dataset or fallback to legacy master
     versioned_path = get_latest_dataset_version()
@@ -78,7 +81,8 @@ def main() -> None:
             if should_run_catchup(log_df, daily_df):
                 with st.spinner("Ejecutando catch-up y calculando inferencias..."):
                     run_global_catchup(
-                        Path(LOG_PATH), daily_df, merged_df, model_name="h5"
+                        Path(LOG_PATH), daily_df, merged_df, model_name="h5",
+                        cache=st.session_state.bundle_cache,
                     )
                 st.success("Proceso completado: bitácora actualizada.")
                 st.rerun()
@@ -132,6 +136,7 @@ def main() -> None:
                         f"Reentrenamiento completado. "
                         f"Nuevo test accuracy: {result['test_accuracy']:.3f}"
                     )
+                    st.session_state.bundle_cache.clear()
                 except Exception as exc:  # noqa: BLE001
                     st.error(f"Error en reentrenamiento: {exc}")
         if quantum_msg:
