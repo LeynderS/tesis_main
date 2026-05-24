@@ -103,18 +103,25 @@ def setup_page() -> None:
     st.title("Validación Experimental")
     st.caption("Comparativo Clásico vs Cuántico — Horizonte t+5")
     
-    
 
 
-def render_top_bar(last_run: str | None) -> bool:
+def render_top_bar(last_run: str | None, gate_active: bool = False) -> bool:
     with st.container():
-        c1, c2 = st.columns([1,6])
+        c1, c2 = st.columns([1, 6])
         with c1:
-            clicked = st.button(
-                "Actualizar BVG + Catch-up",
-                type="secondary",
-                width='content',
-            )
+            if gate_active:
+                st.button(
+                    "Actualizar BVG + Catch-up",
+                    type="secondary",
+                    disabled=True,
+                    help="Lote de 4 semanas completado. Reentrenar antes de continuar.",
+                )
+                clicked = False
+            else:
+                clicked = st.button(
+                    "Actualizar BVG + Catch-up",
+                    type="secondary",
+                )
         with c2:
             label = "Sin ejecuciones previas" if not last_run else f"🕐 {last_run}"
             st.write(f"Última ejecución: {label}")
@@ -159,7 +166,7 @@ def show_freeze_metrics(csv_path: Path) -> None:
             display["created_at_utc"] = pd.to_datetime(
                 display["created_at_utc"], errors="coerce"
             ).dt.strftime("%Y-%m-%d %H:%M")
-        st.dataframe(display, use_container_width=True, hide_index=True)
+        st.dataframe(display, width="stretch", hide_index=True)
     except Exception as exc:
         st.warning(f"Error al cargar métricas de validación: {exc}")
 
@@ -263,7 +270,7 @@ def build_cards(log_df: pd.DataFrame, company: str) -> None:
 
 def show_price_chart(fig: object) -> None:
     section_header("📈", "Gráfico de Precios + Predicciones", "#f59e0b")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 # ── Quick history ──────────────────────────────────────────────────────────────
@@ -276,7 +283,7 @@ def show_quick_history(history_df: pd.DataFrame, company: str) -> None:
     drop_cols = [c for c in history_df.columns if c in ("target_up_h1", "target_up_h20")]
     display_df = history_df.drop(columns=drop_cols, errors="ignore").tail(10).copy()
     st.caption(f"Últimas {len(display_df)} filas para {company}")
-    st.dataframe(display_df, use_container_width=True, hide_index=True)
+    st.dataframe(display_df, width="stretch", hide_index=True)
 
 
 # ── Traceability ───────────────────────────────────────────────────────────────
@@ -307,10 +314,12 @@ def _pivot_traceability(log_df: pd.DataFrame) -> pd.DataFrame:
             fam = g.loc[g["model_family"] == family]
             suffix = "Clasico" if family == "classical" else "Cuantico"
             if fam.empty:
+                row[f"Version_{suffix}"] = "—"
                 row[f"Pred_{suffix}"] = "—"
                 row[f"Proba_{suffix}"] = "—"
                 row[f"Estado_{suffix}"] = "—"
             else:
+                row[f"Version_{suffix}"] = fam["model_version"].iloc[0]
                 row[f"Pred_{suffix}"] = fam["y_pred_label"].iloc[0]
                 proba = fam["proba_up"].iloc[0]
                 row[f"Proba_{suffix}"] = f"{float(proba)*100:.0f}%" if pd.notna(proba) else "—"
@@ -353,4 +362,4 @@ def show_traceability_table(log_df: pd.DataFrame) -> None:
     display_df = display_df.sort_values("_sort", ascending=False).drop(columns=["_sort"])
 
     styled = display_df.style.set_table_attributes('class="compact-table"')
-    st.dataframe(styled, use_container_width=True, hide_index=True)
+    st.dataframe(styled, width="stretch", hide_index=True)

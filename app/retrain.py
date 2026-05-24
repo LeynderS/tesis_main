@@ -18,94 +18,18 @@ from bvg_core.features import build_features_for_company
 from bvg_core.splits import temporal_split_company
 
 
-def _get_manifest_path(company: str, model_name: str = "h5") -> Path:
+def _get_manifest_path(company: str, model_family: str = "classical", model_name: str = "h5") -> Path:
     tag = COMPANY_FILE_MAP.get(company)
     if not tag:
         raise FileNotFoundError(f"Empresa no mapeada: {company}")
-    return MODELS_DIR / "classical" / f"{tag}_{model_name}_manifest.json"
+    return MODELS_DIR / model_family / f"{tag}_{model_name}_manifest.json"
 
 
-def _load_manifest(company: str, model_name: str = "h5") -> dict[str, Any]:
-    path = _get_manifest_path(company, model_name)
+def _load_manifest(company: str, model_family: str = "classical", model_name: str = "h5") -> dict[str, Any]:
+    path = _get_manifest_path(company, model_family, model_name)
     if not path.exists():
         raise FileNotFoundError(f"Manifest no encontrado: {path.as_posix()}")
     return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _last_retrain_date(manifest: dict[str, Any]) -> datetime | None:
-    history = manifest.get("retrain_history", [])
-    if not history:
-        return None
-    last = history[-1]
-    ts_str = last.get("retrained_at_utc") or last.get("utc_timestamp")
-    if not ts_str:
-        return None
-    try:
-        return pd.to_datetime(ts_str).to_pydatetime()
-    except Exception:  # noqa: BLE001
-        return None
-
-
-def _rolling_accuracy(
-    log_df: pd.DataFrame,
-    company: str,
-    model_family: str,
-    min_resolved: int = 4,
-) -> float | None:
-    resolved = log_df.loc[
-        (log_df["company"] == company)
-        & (log_df["model_family"] == model_family)
-        & (log_df["status"].isin(["ACIERTO", "FALLO"]))
-    ].copy()
-    if len(resolved) < min_resolved:
-        return None
-    return float((resolved.tail(min_resolved)["status"] == "ACIERTO").mean())
-
-
-def should_retrain(
-    log_df: pd.DataFrame,
-    company: str,
-    model_family: str,
-    min_resolved: int = 4,
-    threshold: float = 0.40,
-    cooldown_days: int = 7,
-) -> bool:
-    """Return True if rolling accuracy is below threshold and cooldown has passed."""
-    acc = _rolling_accuracy(log_df, company, model_family, min_resolved)
-    if acc is None:
-        return False
-    if acc >= threshold:
-        return False
-
-    if model_family == "classical":
-        try:
-            manifest = _load_manifest(company)
-        except FileNotFoundError:
-            return False
-        last_retrain = _last_retrain_date(manifest)
-        if last_retrain is not None:
-            days_since = (datetime.now(timezone.utc) - last_retrain).days
-            if days_since < cooldown_days:
-                return False
-
-    return True
-
-
-def should_retrain_quantum(
-    log_df: pd.DataFrame,
-    company: str,
-    min_resolved: int = 4,
-    threshold: float = 0.40,
-) -> str | None:
-    """Return a warning message if quantum drift is detected, otherwise None."""
-    drift = should_retrain(log_df, company, "quantum", min_resolved, threshold)
-    if drift:
-        return (
-            f"El modelo cuántico para **{company}** muestra deriva "
-            f"(rolling accuracy < {threshold}). El reentrenamiento cuántico "
-            "debe ejecutarse manualmente desde el notebook correspondiente."
-        )
-    return None
 
 
 def retrain_classical_model(
@@ -115,9 +39,10 @@ def retrain_classical_model(
     *,
     model_name: str = "h5",
     dataset_version: str | None = None,
+    training_cutoff: str | pd.Timestamp | None = None,
 ) -> dict[str, Any]:
     """Retrain a classical SVC model using original manifest hyperparameters."""
-    manifest = _load_manifest(company, model_name)
+    manifest = _load_manifest(company, model_name=model_name)
     params_fixed = manifest.get("params_fixed")
     feature_columns = manifest.get("feature_columns")
     if not params_fixed or not feature_columns:
@@ -132,6 +57,14 @@ def retrain_classical_model(
     company_df = df.loc[df["empresa"] == company].copy()
     if company_df.empty:
         raise ValueError(f"No se encontraron datos para la empresa: {company}")
+
+    if training_cutoff is not None:
+        cutoff_ts = pd.to_datetime(training_cutoff)
+        company_df = company_df.loc[company_df["fecha"] <= cutoff_ts].copy()
+        if company_df.empty:
+            raise ValueError(
+                f"No quedan filas para {company} tras aplicar corte de entrenamiento {training_cutoff}"
+            )
 
     featured = build_features_for_company(company_df)
     featured = featured.dropna(
@@ -183,9 +116,11 @@ def retrain_classical_model(
         "test_accuracy": accuracy,
         "smoke_test_passed": True,
         "dataset_version": dataset_version or "v1.0.0-legacy",
+        "training_cutoff": str(training_cutoff) if training_cutoff is not None else None,
+        "training_policy": "rows_with_known_h5_target_at_cutoff",
     }
     manifest.setdefault("retrain_history", []).append(history_entry)
-    manifest_path = _get_manifest_path(company, model_name)
+    manifest_path = _get_manifest_path(company, model_name=model_name)
     manifest_path.write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False),
         encoding="utf-8",

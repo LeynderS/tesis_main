@@ -29,7 +29,8 @@ openspec/
 # Agent and AI tools
 .agents/
 .github/
-.gemini/
 .atl/
 skills-lock.json
 scripts/
+AGENTS.md
+tests/

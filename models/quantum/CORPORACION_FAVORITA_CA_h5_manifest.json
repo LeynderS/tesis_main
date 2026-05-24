@@ -80,5 +80,23 @@
       0.012896287250946993,
       0.011986557342749404
     ]
-  }
+  },
+  "retrain_history": [
+    {
+      "retrained_at_utc": "2026-05-23T10:31:15.835848+00:00",
+      "model_version": "retrained_20260523",
+      "dataset_version": "v20260522-f524b450",
+      "test_accuracy": 0.4666666666666667,
+      "test_f1": 0.42857142857142855,
+      "smoke_test_passed": true,
+      "training_cutoff": "2026-04-17",
+      "training_policy": "rows_with_known_h5_target_at_cutoff",
+      "artifact_paths": {
+        "scaler": "CORPORACION_FAVORITA_CA_h5_scaler_retrained_20260523.joblib",
+        "pca": "CORPORACION_FAVORITA_CA_h5_pca_retrained_20260523.joblib",
+        "svc": "CORPORACION_FAVORITA_CA_h5_svc_retrained_20260523.joblib",
+        "kernel_config": "CORPORACION_FAVORITA_CA_h5_kernel_config_retrained_20260523.json"
+      }
+    }
+  ]
 }

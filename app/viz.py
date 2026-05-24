@@ -15,7 +15,7 @@ def compute_accuracy(log_df: pd.DataFrame) -> float | None:
     return float((resolved["status"] == "ACIERTO").mean())
 
 
-def build_plotly(history: pd.DataFrame, log_df: pd.DataFrame, company: str) -> go.Figure:
+def build_plotly(history: pd.DataFrame, log_df: pd.DataFrame, company: str, gate_active: bool = False) -> go.Figure:
     history_plot = history.copy()
     history_plot["fecha"] = pd.to_datetime(history_plot["fecha"], errors="coerce")
     history_plot = history_plot.loc[history_plot["fecha"].notna()].copy()
@@ -134,7 +134,31 @@ def build_plotly(history: pd.DataFrame, log_df: pd.DataFrame, company: str) -> g
     # ── Layout ───────────────────────────────────────────────────────────────
     min_date = history_plot["fecha"].min() if not history_plot.empty else None
     max_date = history_plot["fecha"].max() if not history_plot.empty else None
-    fig.update_xaxes(range=[min_date, max_date])
+
+    # ── Post-gate observed-data zone ─────────────────────────────────────────
+    if gate_active and not company_log.empty:
+        last_pred_t5 = company_log["fecha_t5"].max()
+        if pd.notna(last_pred_t5) and max_date is not None and max_date > last_pred_t5:
+            fig.add_vrect(
+                x0=last_pred_t5,
+                x1=max_date,
+                fillcolor="rgba(128,128,128,0.12)",
+                line_width=0,
+                layer="below",
+            )
+            fig.add_annotation(
+                x=last_pred_t5 + (max_date - last_pred_t5) / 2,
+                y=0.95,
+                yref="paper",
+                text="Predicciones pausadas — reentrenamiento pendiente",
+                showarrow=False,
+                font=dict(size=12, color="#94a3b8"),
+            )
+    fig.update_xaxes(
+        range=[min_date, max_date],
+        minallowed=min_date,
+        # maxallowed=max_date,
+    )
 
     fig.update_layout(
         title="Precio histórico, predicciones y movimientos reales",

@@ -34,6 +34,8 @@ def build_quantum_train_matrix(
     *,
     train_end_date: str | None = None,
     test_size: int | None = TEST_SIZE,
+    training_policy: str | None = None,
+    target_horizon: int = 5,
 ) -> np.ndarray:
     company_df = df.loc[df["empresa"] == company].sort_values("fecha").copy()
     if company_df.empty:
@@ -43,6 +45,14 @@ def build_quantum_train_matrix(
         if pd.notna(train_end):
             company_df = company_df.loc[company_df["fecha"] <= train_end].copy()
     company_df = company_df.dropna(subset=feature_columns + ["fecha", "empresa"]).copy()
+
+    if training_policy == "rows_with_known_h5_target_at_cutoff" and train_end_date:
+        if len(company_df) <= target_horizon:
+            raise ValueError(
+                "Datos insuficientes para aplicar rows_with_known_h5_target_at_cutoff."
+            )
+        company_df = company_df.iloc[:-target_horizon].copy()
+
     if test_size is not None and test_size > 0 and len(company_df) <= test_size:
         raise ValueError(
             f"Datos insuficientes para reconstruir X_train_q (n={len(company_df)})."

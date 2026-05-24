@@ -135,7 +135,8 @@ def download_and_clean_bvg(
     df[EMISOR_COL] = df[EMISOR_COL].astype(str).str.strip()
 
     df = df.loc[df[EMISOR_COL].isin(target_issuers)].copy()    
-    df = df.loc[df[BVG_REQUIRED_COLUMNS].notna().all(axis=1)].copy()
+    req_cols = list(BVG_REQUIRED_COLUMNS)
+    df = df.loc[df[req_cols].notna().all(axis=1)].copy()
 
     if df.empty:
         raise ValueError("No se encontraron filas válidas para emisores objetivo.")

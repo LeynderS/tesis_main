@@ -80,5 +80,23 @@
       0.002334696395331561,
       0.002070449296987019
     ]
-  }
+  },
+  "retrain_history": [
+    {
+      "retrained_at_utc": "2026-05-23T05:05:54.043923+00:00",
+      "model_version": "retrained_20260523",
+      "dataset_version": "v20260522-f524b450",
+      "test_accuracy": 0.6333333333333333,
+      "test_f1": 0.6206896551724138,
+      "smoke_test_passed": true,
+      "training_cutoff": "2026-04-17",
+      "training_policy": "rows_with_known_h5_target_at_cutoff",
+      "artifact_paths": {
+        "scaler": "BANCO_GUAYAQUIL_SA_h5_scaler_retrained_20260523.joblib",
+        "pca": "BANCO_GUAYAQUIL_SA_h5_pca_retrained_20260523.joblib",
+        "svc": "BANCO_GUAYAQUIL_SA_h5_svc_retrained_20260523.joblib",
+        "kernel_config": "BANCO_GUAYAQUIL_SA_h5_kernel_config_retrained_20260523.json"
+      }
+    }
+  ]
 }

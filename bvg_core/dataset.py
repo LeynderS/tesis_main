@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -110,15 +109,4 @@ def get_latest_dataset_version(
     return files[0]
 
 
-def update_latest_marker(
-    versioned_path: Path | str,
-    marker_path: Path | str = PROCESSED_DIR / "BVG_features_svc_master.csv",
-) -> None:
-    """Copy ``versioned_path`` to the canonical master path.
 
-    Uses ``shutil.copy2`` for Windows compatibility (no symlinks).
-    """
-    versioned_path = Path(versioned_path)
-    marker_path = Path(marker_path)
-    marker_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(str(versioned_path), str(marker_path))

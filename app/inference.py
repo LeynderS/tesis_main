@@ -30,8 +30,10 @@ def _find_latest_retrained(company: str, model_family: str, model_name: str) -> 
         retrained_dir = CLASSICAL_DIR / "retrained"
         if not retrained_dir.exists():
             return None
-        pattern = f"{tag}_{model_name}_pipeline_retrained_*.joblib"
-        matches = sorted(retrained_dir.glob(pattern))
+        patterns = [
+            f"{tag}_{model_name}_retrained_*.joblib",
+        ]
+        matches = sorted({p for pattern in patterns for p in retrained_dir.glob(pattern)})
         return matches[-1] if matches else None
     
     if model_family == "quantum":
@@ -115,6 +117,20 @@ def load_quantum_artifacts(company: str, model_name: str) -> dict:
     kernel_config = json.loads(kernel_config_path.read_text(encoding="utf-8"))
     qkernel = build_qkernel(kernel_config)
 
+    retrain_metadata = None
+    train_end_date_for_inference = None
+    training_policy = None
+    train_matrix_test_size = 0
+    if model_version.startswith("retrained_"):
+        for entry in manifest.get("retrain_history", []):
+            if entry.get("model_version") == model_version:
+                retrain_metadata = entry
+                train_end_date_for_inference = entry.get("training_cutoff")
+                training_policy = entry.get("training_policy")
+                if training_policy == "rows_with_known_h5_target_at_cutoff":
+                    train_matrix_test_size = TEST_SIZE
+                break
+
     return {
         "manifest": manifest,
         "scaler": scaler,
@@ -124,6 +140,11 @@ def load_quantum_artifacts(company: str, model_name: str) -> dict:
         "kernel_config": kernel_config,
         "model_name": f"{tag}_{model_name}",
         "model_version": model_version,
+        "retrain_metadata": retrain_metadata,
+        "training_cutoff": train_end_date_for_inference,
+        "training_policy": training_policy,
+        "train_matrix_test_size": train_matrix_test_size,
+        "train_end_date_for_inference": train_end_date_for_inference,
     }
 
 
@@ -148,6 +169,8 @@ def build_quantum_train_matrix(
     *,
     train_end_date: str | None = None,
     test_size: int | None = TEST_SIZE,
+    training_policy: str | None = None,
+    target_horizon: int = 5,
 ) -> np.ndarray:
     return _build_quantum_train_matrix(
         df,
@@ -157,6 +180,8 @@ def build_quantum_train_matrix(
         pca,
         train_end_date=train_end_date,
         test_size=test_size,
+        training_policy=training_policy,
+        target_horizon=target_horizon,
     )
 
 
@@ -189,7 +214,11 @@ def infer_quantum(
     qkernel = bundle["qkernel"]
     feature_columns = list(bundle["manifest"]["feature_columns"])
 
-    train_end_date = bundle["manifest"].get("train_end_date")
+    train_end_date = (
+        bundle.get("training_cutoff")
+        or bundle.get("train_end_date_for_inference")
+        or bundle["manifest"].get("train_end_date")
+    )
     X_train_q = X_train_q_cached
     if X_train_q is None:
         X_train_q = build_quantum_train_matrix(
@@ -199,8 +228,23 @@ def infer_quantum(
             scaler,
             pca,
             train_end_date=train_end_date,
-            test_size=0,
+            test_size=bundle.get("train_matrix_test_size", 0),
+            training_policy=bundle.get("training_policy"),
         )
+
+    expected_width = svc.n_features_in_
+    actual_width = X_train_q.shape[0]
+    if actual_width != expected_width:
+        meta_source = "training_cutoff" if bundle.get("training_cutoff") else (
+            "train_end_date_for_inference" if bundle.get("train_end_date_for_inference") else "manifest train_end_date"
+        )
+        raise ValueError(
+            f"Quantum kernel width mismatch: X_train_q has {actual_width} samples, "
+            f"but precomputed SVC expects {expected_width} (n_features_in_). "
+            f"Metadata source used: {meta_source}={train_end_date}. "
+            f"Verify the manifest retrain_history matches the loaded model artifacts."
+        )
+
     Xq = pca.transform(scaler.transform(X_row))
     K = qkernel.evaluate(x_vec=Xq, y_vec=X_train_q)
     y_pred = int(svc.predict(K)[0])

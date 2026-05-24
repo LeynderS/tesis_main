@@ -51,5 +51,16 @@
     "f1": 0.9090909090909091,
     "positive_rate_pred": 1.0,
     "positive_rate_test": 0.8333333333333334
-  }
+  },
+  "retrain_history": [
+    {
+      "retrained_at_utc": "2026-05-23T01:23:22.833982+00:00",
+      "trigger_accuracy": 0.0,
+      "test_accuracy": 0.4666666666666667,
+      "smoke_test_passed": true,
+      "dataset_version": "BVG_features_svc_master_v20260522.csv",
+      "training_cutoff": "2026-04-17 00:00:00",
+      "training_policy": "rows_with_known_h5_target_at_cutoff"
+    }
+  ]
 }

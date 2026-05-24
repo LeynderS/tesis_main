@@ -5,12 +5,13 @@ from datetime import timedelta
 
 import pandas as pd
 import numpy as np
+from bvg_core.dataset import get_latest_dataset_version
 
 from bvg_core.config import (
-    REQUIRED_RAW_COLUMNS, 
-    ACCIONES_COL, 
-    VALOR_EFECTO_COL, 
-    PRECIO_COL, 
+    REQUIRED_RAW_COLUMNS,
+    ACCIONES_COL,
+    VALOR_EFECTO_COL,
+    PRECIO_COL,
     FECHA_COL_2,
     EMPRESA_COL,
     CLOSE_LAST_COL,
@@ -18,10 +19,18 @@ from bvg_core.config import (
     VOLUME_SHARES_DAY_COL,
     TURNOVER_VALUE_DAY_COL,
     N_TRADES_DAY_COL,
+    DATA_MASTER_PATH,
 )
 
 
 def load_master_dataset(path: Path) -> pd.DataFrame:
+    # Prefer the latest versioned file when the canonical master path is requested
+    if path.resolve() == DATA_MASTER_PATH.resolve():
+
+        versioned = get_latest_dataset_version()
+        if versioned is not None and versioned.exists():
+            path = versioned
+
     if not path.exists():
         raise FileNotFoundError(
             f"No se encontró el dataset procesado en {path.as_posix()}"

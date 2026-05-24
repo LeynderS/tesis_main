@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass
+from datetime import timedelta
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from app.config import BVG_FALLBACK_MAX_DAYS, LOG_COLUMNS, TARGET_H, COMPANY_ABBR_MAP, COMPANY_FILE_MAP, MODELS_DIR
+
 from app.inference import (
     build_quantum_train_matrix,
     infer_classical,
@@ -15,8 +17,17 @@ from app.inference import (
     load_quantum_artifacts,
     validate_feature_row,
 )
-from bvg_core.data import compute_target_date, get_friday_data_with_fallback
+from bvg_core.data import get_friday_data_with_fallback
 from bvg_core.features import build_features_for_company
+
+
+@dataclass
+class CatchupResult:
+    log_df: pd.DataFrame
+    retrain_due: bool = False
+    retrain_week: int | None = None
+    retrain_friday: pd.Timestamp | None = None
+
 
 def reset_log_file(log_path: Path) -> None:
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -57,8 +68,10 @@ def detect_model_version(company: str, model_family: str, model_name: str) -> st
         return "original"
 
     if model_family == "classical":
-        pattern = f"{tag}_{model_name}_pipeline_retrained_*.joblib"
-        matches = sorted(retrained_dir.glob(pattern))
+        patterns = [
+            f"{tag}_{model_name}_retrained_*.joblib",
+        ]
+        matches = sorted({p for pattern in patterns for p in retrained_dir.glob(pattern)})
     else:
         pattern = f"{tag}_{model_name}_svc_retrained_*.joblib"
         matches = []
@@ -185,11 +198,12 @@ def generate_semantic_id(
     week_num: int,
     company: str,
     family: str,
+    model_version: str,
     company_abbr_map: dict,
 ) -> str:
     abbr = company_abbr_map.get(company, company.replace(" ", "_")[:5])
     family_title = "Clasico" if family == "classical" else "Cuantico"
-    return f"{week_num}_{abbr}_{family_title}"
+    return f"{week_num}_{abbr}_{family_title}_{model_version}"
 
 
 def resolve_pending(
@@ -281,7 +295,7 @@ def resolve_start_ts(
         log_dates = pd.to_datetime(log_df["fecha_t5"], errors="coerce").dt.normalize()
         log_dates = log_dates.loc[log_dates.notna()]
         if not log_dates.empty:
-            last_inference = log_dates.max()
+            last_inference = log_dates.max() + timedelta(days=7)
 
     start_ts = pd.to_datetime(
         last_inference if pd.notna(last_inference) else default_start_date,
@@ -323,7 +337,7 @@ def predict_for_friday(
     model_versions: dict[str, str] | None = None,
 ) -> list[dict]:
     data_friday = current_friday - timedelta(days=7)
-    target_date = compute_target_date(work_df["fecha"], data_friday)
+    target_date = pd.to_datetime(current_friday).normalize()
     new_records: list[dict] = []
 
     for company in companies:
@@ -354,21 +368,25 @@ def predict_for_friday(
         feature_row = feature_df.tail(1).copy()
 
         for family in model_families:
-            existing_mask = (
-                (log_df["company"] == company)
-                & (log_df["model_family"] == family)
-                & (
-                    pd.to_datetime(log_df["fecha_t"], errors="coerce")
-                    .dt.normalize()
-                    == current_friday
-                )
-            )
-            if not log_df.empty and existing_mask.any():
-                continue
-
             version = model_version
             if model_versions is not None:
                 version = model_versions.get(f"{company}:{family}", model_version)
+
+            # Deduplication: skip if already predicted for this company/family/version/date
+            if not log_df.empty:
+                existing_mask = (
+                    (log_df["company"] == company)
+                    & (log_df["model_family"] == family)
+                    & (log_df["model_version"] == version)
+                    & (
+                        pd.to_datetime(log_df["fecha_t"], errors="coerce")
+                        .dt.normalize()
+                        == data_friday
+                    )
+                )
+                if existing_mask.any():
+                    continue
+
             bundle_key = f"{company}:{family}:{model_name}:{version}"
             bundle = cache.get_bundle(company, family, model_name, version=version)
 
@@ -379,6 +397,11 @@ def predict_for_friday(
                 inference = infer_classical(bundle["pipeline"], X_row)
             else:
                 try:
+                    train_end_date = (
+                        bundle.get("training_cutoff")
+                        or bundle.get("train_end_date_for_inference")
+                        or bundle["manifest"].get("train_end_date")
+                    )
                     X_train_q = cache.get_xtrain(
                         bundle_key,
                         compute_fn=lambda: build_quantum_train_matrix(
@@ -387,8 +410,9 @@ def predict_for_friday(
                             feature_columns,
                             bundle["scaler"],
                             bundle["pca"],
-                            train_end_date=bundle["manifest"].get("train_end_date"),
-                            test_size=0,
+                            train_end_date=train_end_date,
+                            test_size=bundle.get("train_matrix_test_size", 0),
+                            training_policy=bundle.get("training_policy"),
                         ),
                     )
                 except ValueError:
@@ -406,6 +430,7 @@ def predict_for_friday(
                 week_num,
                 company,
                 family,
+                version,
                 COMPANY_ABBR_MAP,
             )
 
@@ -432,6 +457,86 @@ def predict_for_friday(
     return new_records
 
 
+def count_predictions(log_df: pd.DataFrame, company: str, model_family: str, model_version: str) -> int:
+    """Count rows matching company, family, and version in log_df."""
+    mask = (
+        (log_df["company"] == company)
+        & (log_df["model_family"] == model_family)
+        & (log_df["model_version"] == model_version)
+    )
+    return len(log_df.loc[mask])
+
+
+def is_gate_active(
+    log_df: pd.DataFrame,
+    companies: list[str],
+    model_families: tuple[str, ...] = ("classical", "quantum"),
+    model_name: str = "h5",
+) -> bool:
+    """Return True if any company+family has reached the 4-prediction limit
+    for its currently active 'original' version.
+    """
+    if log_df.empty:
+        return False
+    for company in companies:
+        for family in model_families:
+            original_count = count_predictions(log_df, company, family, "original")
+            retrained_available = detect_model_version(company, family, model_name) != "original"
+            if original_count >= 4 and not retrained_available:
+                return True
+    return False
+
+
+def resolve_active_model_version(
+    log_df: pd.DataFrame,
+    company: str,
+    model_family: str,
+    model_name: str = "h5",
+) -> str:
+    """Return the phase-correct model version for RFC6 catch-up.
+
+    Phase 1 always uses the original artifacts for the first four predictions,
+    even if retrained artifacts already exist on disk. After four original rows
+    exist for the company/family, the retrained artifact may be used.
+    """
+    if log_df.empty:
+        return "original"
+    if count_predictions(log_df, company, model_family, "original") < 4:
+        return "original"
+    return detect_model_version(company, model_family, model_name)
+
+
+def resolve_week_num(current_friday: pd.Timestamp, default_start_date: str) -> int:
+    """Return global RFC6 week number from the nominal target Friday."""
+    start = pd.to_datetime(default_start_date).normalize()
+    current = pd.to_datetime(current_friday).normalize()
+    delta_days = max((current - start).days, 0)
+    return delta_days // 7 + 1
+
+
+def derive_training_cutoff(
+    log_df: pd.DataFrame,
+    *,
+    model_version: str = "original",
+) -> pd.Timestamp | None:
+    """Derive the retraining cutoff date from the log.
+
+    Returns the maximum fecha_t5 among rows with the given model_version.
+    This is the latest known target date at the gate and prevents
+    lookahead bias when used to truncate training data.
+    """
+    if log_df.empty or "fecha_t5" not in log_df.columns or "model_version" not in log_df.columns:
+        return None
+    mask = log_df["model_version"] == model_version
+    if not mask.any():
+        return None
+    dates = pd.to_datetime(log_df.loc[mask, "fecha_t5"], errors="coerce")
+    dates = dates.loc[dates.notna()]
+    if dates.empty:
+        return None
+    return dates.max().normalize()
+
+
 def catchup_loop(
     log_path: Path,
     price_df: pd.DataFrame,
@@ -442,33 +547,53 @@ def catchup_loop(
     default_start_date: str = "2026-03-27",
     history_window: int = 30,
     cache: BundleCache | None = None,
-) -> pd.DataFrame:
+) -> CatchupResult:
     log_df = read_log(log_path)
     work_df = prepare_work_df(price_df)
     if work_df.empty:
-        return log_df
+        return CatchupResult(log_df=log_df)
 
     last_valid_target_friday = get_last_valid_target_friday(work_df)
     if last_valid_target_friday is None:
-        return log_df
+        return CatchupResult(log_df=log_df)
 
     start_ts = resolve_start_ts(log_df, default_start_date)
     if start_ts > last_valid_target_friday:
-        return log_df
+        return CatchupResult(log_df=log_df)
 
     if cache is None:
         cache = BundleCache()
     companies = sorted(work_df["empresa"].dropna().unique().tolist())
 
-    model_versions = {}
-    for company in companies:
-        for family in model_families:
-            model_versions[f"{company}:{family}"] = detect_model_version(company, family, model_name)
-
     current_friday = start_ts
-    week_num = 1
     while current_friday <= last_valid_target_friday:
         log_df = resolve_pending(log_df, work_df, current_friday)
+
+        model_versions = {}
+        for company in companies:
+            for family in model_families:
+                model_versions[f"{company}:{family}"] = resolve_active_model_version(
+                    log_df,
+                    company,
+                    family,
+                    model_name,
+                )
+
+        week_num = resolve_week_num(current_friday, default_start_date)
+
+        # Row-count gate: require retrain after 4 original predictions per company+family
+        for company in companies:
+            for family in model_families:
+                version = model_versions.get(f"{company}:{family}", "original")
+                if version == "original" and count_predictions(log_df, company, family, version) >= 4:
+                    log_df.to_csv(log_path, index=False)
+                    return CatchupResult(
+                        log_df=log_df,
+                        retrain_due=True,
+                        retrain_week=week_num,
+                        retrain_friday=current_friday,
+                    )
+
         new_records = predict_for_friday(
             log_df=log_df,
             work_df=work_df,
@@ -489,10 +614,9 @@ def catchup_loop(
             )
 
         current_friday = current_friday + timedelta(days=7)
-        week_num += 1
 
     log_df.to_csv(log_path, index=False)
-    return log_df
+    return CatchupResult(log_df=log_df)
 
 
 def run_global_catchup(
@@ -502,7 +626,12 @@ def run_global_catchup(
     *,
     model_name: str = "h5",
     cache: BundleCache | None = None,
-) -> pd.DataFrame:
+) -> CatchupResult:
+    """Run the global catch-up loop for all companies and model families.
+
+    Returns a CatchupResult containing the updated log DataFrame and any
+    retrain scheduling information.
+    """
     return catchup_loop(
         log_path,
         price_df,

@@ -28,6 +28,9 @@ THEME_ACCENT_QUANTUM = "#8b5cf6"
 
 BVG_FALLBACK_MAX_DAYS = 4
 
+
+
+
 LOG_COLUMNS = [
     "id",
     "company",
