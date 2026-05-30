@@ -22,7 +22,7 @@ La implementación está organizada por **fases académicas**, con notebooks aut
 - **Fase 3 — Modelado clásico**
   - Carpeta: `Fase3_ModeladoClasico/`
   - Subfase 6 (final h5):
-    - Notebook: `subfase_6_modelado_final_h5.ipynb`
+    - Notebook: `subfase_6_entrenamiento_final_svc.ipynb`
     - Modelo: `RobustScaler + SVC(probability=True)`
     - Parámetros fijos:
       - **Banco Guayaquil**: `kernel='linear', C=0.1, class_weight='balanced'`
@@ -31,7 +31,7 @@ La implementación está organizada por **fases académicas**, con notebooks aut
 - **Fase 4 — Modelado cuántico**
   - Carpeta: `Fase4_ModeladoCuantico/`
   - Subfase 7 (h5):
-    - Notebook: `subfase_7_modelado_cuantico_h5.ipynb`
+    - Notebook: `subfase_7_entrenamiento_qsvc.ipynb`
     - Flujo: `PCA (≤5) + ZZFeatureMap + FidelityQuantumKernel + SVC (kernel precomputed)`
     - Backend: simulación **statevector**
 
