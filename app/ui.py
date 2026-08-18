@@ -144,7 +144,7 @@ def section_header(emoji: str, title: str, color: str) -> None:
 
 
 def show_freeze_metrics(csv_path: Path) -> None:
-    section_header("🧊", "Métricas de Validación (Modelos Congelados)", "#10b981")
+    section_header("", "Métricas de Validación (Modelos Congelados)", "#10b981")
     if not csv_path.exists():
         st.info("No se encontró el archivo de métricas de validación.")
         return
@@ -192,7 +192,7 @@ def _compute_accuracy_f1(resolved_df: pd.DataFrame) -> tuple[float | None, float
 
 
 def build_cards(log_df: pd.DataFrame, company: str) -> None:
-    section_header("🎯", "Comparativo de Modelos", "#3b82f6")
+    section_header("", "Comparativo de Modelos", "#3b82f6")
     if log_df.empty:
         st.info("No hay registros para la empresa seleccionada.")
         return
@@ -269,7 +269,7 @@ def build_cards(log_df: pd.DataFrame, company: str) -> None:
 # ── Price chart ────────────────────────────────────────────────────────────────
 
 def show_price_chart(fig: object) -> None:
-    section_header("📈", "Gráfico de Precios + Predicciones", "#f59e0b")
+    section_header("", "Gráfico de Precios + Predicciones", "#f59e0b")
     st.plotly_chart(fig, width="stretch")
 
 
